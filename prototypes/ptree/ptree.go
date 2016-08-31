@@ -1,10 +1,6 @@
-package main
+package ptree
 
 import (
-	//	"bufio"
-	"fmt"
-	"gopkg.in/yaml.v2"
-	//	"os"
 	"strings"
 )
 
@@ -164,24 +160,4 @@ func (self *Ptree) InsertPath(path string, data int) {
 
 func (self *Ptree) GetNode(path string) *GeneralNode {
 	return self.GeneralRoot.FindPath(path)
-}
-
-func main() {
-	ptree := NewPtree()
-
-	ptree.InsertPath("aaa:1111", 3)
-	ptree.InsertPath("aaa:1111:bbb", 3)
-	//	file, _ := os.Open("words.txt")
-	//	b := bufio.NewReader(file)
-	//	for {
-	//		l, _, err := b.ReadLine()
-	//		if err != nil {
-	//			break
-	//		}
-	//
-	//		ptree.InsertPath(string(l), 3)
-	//
-	//	}
-	f, _ := yaml.Marshal(ptree)
-	fmt.Println(string(f))
 }
