@@ -14,35 +14,12 @@
  *      TITLE
  *
  * TODO
- *      1. Find all headers
+ *      1. Find all headers +
  */
-
 
 
 #define SCANNER_LINE_START 0
 #define SCANNER_POS_START  0
-
-enum token {
-    /* Special */
-    illegal = 0,
-    eof ,
-    cr ,
-    lf ,
-    ws ,
-
-    /* Grammar */
-    // Comment
-    dash ,
-    // Possible path start
-    lbracket ,
-    // Possible path end
-    rbracket ,
-    // Possible path delimiter
-    semicolon ,
-    // Possible title start
-    atsign ,
-};
-
 
 struct scanner {
     unsigned char *buf;
@@ -50,7 +27,6 @@ struct scanner {
     size_t line;
     size_t lpos;
 };
-
 
 
 void
@@ -65,7 +41,7 @@ scanner_own_cfdm(struct scanner *s, struct cfdmap *m) {
 unsigned char *
 get_header(struct scanner *s, int *len, int *sc) {
     unsigned char *cursor = (s->buf + s->pos);
-    while(*cursor) { 
+    while(*cursor) {
         // If we in the beginning of buf or '[' - first elem in line
         if(*cursor == '[' && ((s->pos == 0) || (*(cursor - 1) == '\n'))) {
             unsigned char *subcursor = cursor;
@@ -87,7 +63,7 @@ get_header(struct scanner *s, int *len, int *sc) {
                         printf("ERROR");
                         return NULL;
                 }
-            } 
+            }
 
             s->pos++;
             return cursor;
@@ -106,7 +82,6 @@ int main(int argc, const char *argv[])
     struct scanner *s = malloc(sizeof(struct scanner));
     scanner_own_cfdm(s, m);
 
-
     unsigned char *header = NULL;
     int len = 0;
     int sections = 0;
@@ -118,8 +93,7 @@ int main(int argc, const char *argv[])
         pbuf[len - 2] = '\0';
         memcpy(pbuf, header + 1, len - 2);
         swap_node = root;
-        
-        
+
         // addind path to  trie
         unsigned char localbuffer[64] = {0};
         int l = 0;
@@ -131,7 +105,7 @@ int main(int argc, const char *argv[])
                 memcpy(localbuffer, off_left, loclen);
                 localbuffer[loclen] = '\0';
                 l = r + 1;
-                
+
                 swap_node = trie_add(swap_node, strdup((const char *)localbuffer));
                 memset(localbuffer, 0, 64);
                 if (pbuf[r] == '\0') {
@@ -140,10 +114,12 @@ int main(int argc, const char *argv[])
             }
             r++;
         }
-        
+
         len = 0;
         sections = 0;
     }
+
+    trie_sort(root, trie_sort_path_label_desc);
     trie_print(root, 0);
     return 0;
 }
