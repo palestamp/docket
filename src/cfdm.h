@@ -12,12 +12,14 @@
 /*
  * Storage for memmory mapped file
  */
+
 struct cfdmap {
-    off_t size;
-    char *map;
+    unsigned char *map;
+    size_t size;
 };
 
 
-int map_file(const char *filename, struct cfdmap* cfdmap);
+unsigned char* map_file(const char *filename, size_t *len);
+void map(const char *filename, struct cfdmap *c);
 
 #endif

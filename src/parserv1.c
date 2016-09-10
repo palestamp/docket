@@ -1,34 +1,26 @@
-#include "cfdm.h"
 #include <string.h>
 #include <stdlib.h>
 #include <stdio.h>
 
+#include "trie.h"
+#include "cfdm.h"
+
+/*
+ * Top-level lexing
+ *
+ * Stream tokens:
+ *      LAYOUT
+ *      HEADER
+ *      TITLE
+ *
+ * TODO
+ *      1. Find all headers
+ */
+
+
+
 #define SCANNER_LINE_START 0
 #define SCANNER_POS_START  0
-#define MAX_MORPHEME_STACK 64
-
-#define _SCANNER_STACK_DUMP(_s) do {        \
-    int __i;                                \
-    for(__i = 0; __i < 64; __i++) {         \
-        if(_s->tokens[__i] != 0) {                \
-            printf("%s ", token_lut[_s->tokens[__i]]);     \
-        }                                      \
-    }                                       \
-    printf("\n");                           \
-} while (0)
-
-#define SCANNER_REWIND(_s) do {    \
-    _s->last_morpheme_start = -1;  \
-    _s->next_slot = 0;             \
-} while (0)                     
-
-#define SCANNER_PUT_TOKEN(_s, _token) do {  \
-    if(_s->next_slot == 0) {\
-        _s->last_morpheme_start = _s->pos;      \
-    }\
-    _s->tokens[_s->next_slot] = _token;     \
-    _s->next_slot++;                        \
-} while(0)
 
 enum token {
     /* Special */
@@ -50,139 +42,108 @@ enum token {
     // Possible title start
     atsign ,
 };
-static const char *token_lut[] = {
-    "ILLEGAL",
-    "EOF",
-    "CL",
-    "LF",
-    "WS",
-    "DASH",
-    "LBRACKET",
-    "RBRACKET" ,
-    "SEMICOLON" ,
-    "ATSIGN" ,
-};
 
 
 struct scanner {
+    unsigned char *buf;
     size_t pos;
     size_t line;
     size_t lpos;
-    char *buf;
-    int last_morpheme_start;
-    int next_slot;
-    int tokens[MAX_MORPHEME_STACK];
 };
 
-typedef int(*advancer)(struct scanner *s);
-typedef int(*parser)(char ch);
-struct vmparser {
-    advancer advancefn;
-    parser    parsefn;
-};
 
-int
-lbracket_adv(struct scanner *s) {
-    if (s->next_slot == 1 && s->tokens[0] == lf) {
-        SCANNER_PUT_TOKEN(s, lbracket);
-    }
-    printf("LBRACKET\n");
-}
-
-int
-cl_adv(struct scanner *s) {
-    printf("CL\n");
-}
-int
-lf_adv(struct scanner *s) {
-    if(s->next_slot > 1 && s->tokens[0] == lf && s->tokens[1] == lbracket) {
-        printf("ERROR\n");
-        abort();
-    }
-    SCANNER_REWIND(s);
-    SCANNER_PUT_TOKEN(s, lf);
-    printf("LF\n");
-}
-int
-ws_adv(struct scanner *s) {
-    printf("WS\n");
-}
-int 
-rbracket_adv(struct scanner *s) {
-
-    printf("RBRACKET\n");
-    if(s->next_slot > 1 && s->tokens[0] == lf && s->tokens[1] == lbracket) {
-        printf("HEADER FOUND ");
-        // shifting all range to one char to the right
-        printf("%.*s\n", (s->pos - s->last_morpheme_start), (s->buf + s->last_morpheme_start + 1));
-        SCANNER_REWIND(s);
-    }
-}
-int 
-atsign_adv(struct scanner *s) {
-    printf("ATSIGN\n");
-}
-
-int 
-semicolon_adv(struct scanner *s) {
-    printf("SEMICOLON\n");
-}
 
 void
 scanner_own_cfdm(struct scanner *s, struct cfdmap *m) {
     s->pos = 0;
     s->line = SCANNER_LINE_START;
     s->lpos = SCANNER_POS_START;
-    memset((void *)s->tokens, 0, MAX_MORPHEME_STACK * sizeof(int));
-    s->next_slot = 0;
-    s->last_morpheme_start = 0;
-    s->buf = (char *)m->map;
+    s->buf = m->map;
 }
 
-static struct vmparser dvmt[] = {
-    {NULL, NULL}, // illegal
-    {NULL, NULL}, // eof
-    {cl_adv, NULL}, // cr
-    {lf_adv, NULL}, // lf
-    {ws_adv, NULL}, // ws
 
-    {NULL, NULL}, // dash
-    {lbracket_adv, NULL}, // lbracket
-    {rbracket_adv, NULL}, // rbracket
-    {semicolon_adv, NULL}, // semicolon
-    {atsign_adv, NULL}, // atsign
-};
+unsigned char *
+get_header(struct scanner *s, int *len, int *sc) {
+    unsigned char *cursor = (s->buf + s->pos);
+    while(*cursor) { 
+        // If we in the beginning of buf or '[' - first elem in line
+        if(*cursor == '[' && ((s->pos == 0) || (*(cursor - 1) == '\n'))) {
+            unsigned char *subcursor = cursor;
+            while(1) {
+                subcursor++;
+                s->pos++;
+                (*len)++;
+                switch (*subcursor) {
+                    case ':':
+                        (*sc)++;
+                        break;
+                    case ']':
+                        // each path has at least one section
+                        (*sc)++;
+                        (*len)++;
+                        s->pos++;
+                        return cursor;
+                    case '\n':
+                        printf("ERROR");
+                        return NULL;
+                }
+            } 
 
-
-
-int parse(struct scanner *s, struct vmparser vmt[]) {
-    char *cursor = s->buf;
-    char tok = 0;
-    while ((tok = *cursor)) {
-        switch(tok) {
-            case '\n': vmt[lf].advancefn(s); break;
-            case '\r': vmt[cr].advancefn(s); break;
-            case '[': vmt[lbracket].advancefn(s); break;
-            case ']': vmt[rbracket].advancefn(s); break;
-            case ':': vmt[semicolon].advancefn(s); break;
-            case '@': vmt[atsign].advancefn(s); break;
-            case '\t':
-            case ' ': vmt[ws].advancefn(s); break;
+            s->pos++;
+            return cursor;
         }
 
-//        _SCANNER_STACK_DUMP(s);
-        cursor++;
         s->pos++;
+        cursor++;
     }
-    return 0;
+    return NULL;
 }
 
 int main(int argc, const char *argv[])
 {
-    struct cfdmap *m = malloc(sizeof(m));
-    map_file("../local.docket", m);
-    struct scanner *s = malloc(sizeof(s));
+    struct cfdmap *m = malloc(sizeof(struct cfdmap));
+    map("../local.docket", m);
+    struct scanner *s = malloc(sizeof(struct scanner));
     scanner_own_cfdm(s, m);
-    parse(s, dvmt);
+
+
+    unsigned char *header = NULL;
+    int len = 0;
+    int sections = 0;
+    unsigned char pbuf[1024] = {0};
+    struct word_trie *root = trie_new();
+    struct word_trie *swap_node = NULL;
+    while((header = get_header(s, &len, &sections)) != NULL) {
+        // strip left and right bracket
+        pbuf[len - 2] = '\0';
+        memcpy(pbuf, header + 1, len - 2);
+        swap_node = root;
+        
+        
+        // addind path to  trie
+        unsigned char localbuffer[64] = {0};
+        int l = 0;
+        int r = 0;
+        while(1) {
+            if (pbuf[r] == ':' || pbuf[r] == '\0') {
+                unsigned char *off_left = pbuf + l;
+                int loclen = r - l ;
+                memcpy(localbuffer, off_left, loclen);
+                localbuffer[loclen] = '\0';
+                l = r + 1;
+                
+                swap_node = trie_add(swap_node, strdup((const char *)localbuffer));
+                memset(localbuffer, 0, 64);
+                if (pbuf[r] == '\0') {
+                    break;
+                }
+            }
+            r++;
+        }
+        
+        len = 0;
+        sections = 0;
+    }
+    trie_print(root, 0);
     return 0;
 }

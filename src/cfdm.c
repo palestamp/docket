@@ -3,8 +3,8 @@
 
 #include "cfdm.h"
 
-int
-map_file(const char *filename, struct cfdmap* cfdm) {
+unsigned char *
+map_file(const char *filename, size_t *len) {
     int fd;
     struct stat sb;
 
@@ -21,17 +21,25 @@ map_file(const char *filename, struct cfdmap* cfdm) {
         fprintf(stderr, "%s is not a file\n", filename);
         return 0;
     }
-    cfdm->map = mmap(NULL, sb.st_size, PROT_READ, MAP_PRIVATE, fd, 0);
-    if (cfdm->map == MAP_FAILED) {
-        perror("mmap");
-        return 0;
-    }
-
+    unsigned char *map = mmap(0, sb.st_size, PROT_READ, MAP_PRIVATE , fd, 0);
     if(close(fd) == -1) {
         perror("close");
         return 0;
     }
+    if (map == MAP_FAILED) {
+        perror("mmap");
+        return 0;
+    }
 
-    cfdm->size = sb.st_size;
-    return 1;
+    *len = sb.st_size;
+    return map;
 }
+
+void
+map(const char *filename, struct cfdmap *c) {
+    size_t len = 0;
+    c->map = map_file(filename, &len);
+    c->size = len;
+}
+
+
