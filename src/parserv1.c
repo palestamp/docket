@@ -78,7 +78,7 @@ get_header(struct scanner *s, int *len, int *sc) {
 int main(int argc, const char *argv[])
 {
     struct cfdmap *m = malloc(sizeof(struct cfdmap));
-    map("../local.docket", m);
+    map("/Users/staskazhavets/Dropbox/owl.docket", m);
     struct scanner *s = malloc(sizeof(struct scanner));
     scanner_own_cfdm(s, m);
 
@@ -119,7 +119,7 @@ int main(int argc, const char *argv[])
         sections = 0;
     }
 
-    trie_sort(root, trie_sort_path_label_desc);
+    trie_sort(root, trie_sort_path_label_asc);
     trie_print(root, 0);
     return 0;
 }
