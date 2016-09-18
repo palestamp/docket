@@ -37,7 +37,6 @@ create_config_file(void) {
 
 struct config *
 config_create(void) {
-    printf("CREAT");
     struct config *c = malloc(sizeof(struct config));
     c->trie = trie_new();
     return c;
@@ -50,12 +49,15 @@ config_load(void) {
 
 int
 config_add(struct config *c, const char * accessor_string, const char *value) {
-    printf("asdasdasd");
-    struct word_trie *t = NULL;
-    if((t = trie_get_path(c->trie, accessor_string)) == NULL) {
-    //    t = trie_insert_path(c->trie, accessor_string);
+    struct word_trie *t = trie_get_path(c->trie, accessor_string);
+    if(t == NULL) {
+        t = trie_insert_path(c->trie, accessor_string);
     }
-   // list_insert((struct lnode *)t->data,  (void *)(strdup(value)));
+   
+    if(t->data == NULL) {
+        t->data = calloc(1, sizeof(struct lnode));
+    }
+    list_insert((struct lnode *)t->data,  (void *)(strdup(value)));
     return 1;
 
 }
@@ -83,7 +85,9 @@ config_has(struct config *c, const char * accessor_string, const char *value) {
 
 int
 config_flush(struct config *c) {
-//    trie_print(c->trie);
+    char linebuf[1024] = 0;
+
+    trie_print(c->trie);
     return 1;
 }
 

@@ -3,6 +3,10 @@
 
 
 void list_insert(struct lnode *head, void *data)  {
+    if(head->data == NULL) {
+        head->data = data;
+        return;
+    }
     struct lnode *n = malloc(sizeof(struct lnode));
     n->data = head->data;
     n->next = head->next;

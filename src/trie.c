@@ -13,6 +13,7 @@ trie_get(struct word_trie *t, const char *word) {
     for (i = 0; i < t->len; i++) {
         n = *(t->edges + i);
         if(n != NULL && (strcmp(n->word, word) == 0)) {
+            printf("IN TRIE_GET %s\n", n->word);
             return n;
         }
     }
@@ -24,6 +25,10 @@ void
 trie_grow(struct word_trie *t) {
     struct word_trie **temp = NULL;
     temp = realloc(t->edges, sizeof(struct word_trie *) * (t->cap + 10));
+    int i;
+    for(i = 0; i < t->cap + 10; i++) {
+        *(temp + i) = NULL;
+    }
     (t->edges) = temp;
 }
 
@@ -46,7 +51,7 @@ trie_add(struct word_trie *t, const char *word) {
     struct word_trie *n = trie_get(t, word);
     if (n == NULL) {
         n = trie_new();
-        n->word = word;
+        n->word = strdup(word);
         trie_grow(t);
 
         t->edges[t->len] = n;
@@ -55,8 +60,8 @@ trie_add(struct word_trie *t, const char *word) {
     return n;
 }
 
-
 struct word_trie *
+
 trie_over_path_apply(trie_path_iter_cb cb, struct word_trie *t, const char *path) {
     struct word_trie *trie = t;
     char *cursor = (char *)path;

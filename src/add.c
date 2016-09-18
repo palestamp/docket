@@ -1,6 +1,6 @@
 #include <stdlib.h>
 #include <stdio.h>
-
+#include <string.h>
 #include "config.h"
 #include "options.h"
 
@@ -18,19 +18,16 @@ cmd_add(int argc, const char **argv) {
         if(config_has(c, "sources", argv[0])) {
             config_free(c);
         } else {
-            printf("%s\n", argv[0]);
             config_add(c, "sources", argv[0]);
-        }
-            /*
             config_flush(c);
             config_free(c);
         }
     } else {
         c = config_create();
-//        config_add(c, "sources", argv[0]);
- //       config_flush(c);
-  //      config_free(c);
-  */
+        config_add(c, "sources", argv[0]);
+        config_flush(c);
+        config_free(c);
+
     }
     return 1;
 }
