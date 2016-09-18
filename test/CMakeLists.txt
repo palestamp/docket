@@ -6,3 +6,7 @@ add_test(suite_1_test suite_1_app)
 add_executable(suite_2_app Test_trie.c)
 target_link_libraries(suite_2_app libdocket Unity)
 add_test(suite_2_test suite_2_app)
+
+add_executable(suite_3_app Test_list.c)
+target_link_libraries(suite_3_app libdocket Unity)
+add_test(suite_3_test suite_3_app)

@@ -1,6 +1,7 @@
 add_library(libdocket STATIC
     cfdm.c
     trie.c
+    list.c
 )
 
 add_executable(docket
@@ -8,6 +9,7 @@ add_executable(docket
     add.c
     config.c
     trie.c
+    list.c
 )
  
 target_include_directories(docket PUBLIC

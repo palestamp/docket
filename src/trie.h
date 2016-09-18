@@ -1,6 +1,8 @@
 #ifndef _H_DOCKET__TRIE
 #define _H_DOCKET__TRIE
 
+#include "cmpfn.h"
+
 struct word_trie {
     int cap;
     int len;
@@ -27,7 +29,7 @@ struct word_trie * trie_get_path(struct word_trie *, const char * path);
 struct word_trie * trie_add(struct word_trie *t, const char *word);
 struct word_trie * trie_insert_path(struct word_trie *, const char * path);
 
-void trie_sort(struct word_trie *t, int(*cmpfn)(const void *, const void *));
+void trie_sort(struct word_trie *t, cmpfn comporator);
 void trie_print(struct word_trie *t);
 
 /* utility functions */
