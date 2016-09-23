@@ -4,7 +4,6 @@
 #include <sys/queue.h>
 
 #include "trie.h"
-#include "list.h"
 
 
 struct config {

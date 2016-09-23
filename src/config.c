@@ -53,11 +53,10 @@ config_add(struct config *c, const char * accessor_string, const char *value) {
     if(t == NULL) {
         t = trie_insert_path(c->trie, accessor_string);
     }
-   
-    if(t->data == NULL) {
-        t->data = calloc(1, sizeof(struct lnode));
-    }
-    list_insert((struct lnode *)t->data,  (void *)(strdup(value)));
+    
+    struct leaf_list *node = malloc(sizeof(struct leaf_list));
+    node->data = (void *)strdup(value);
+    TAILQ_INSERT_TAIL(&t->leafs, node, leaf);
     return 1;
 
 }
@@ -76,16 +75,20 @@ cmp_str(const void *a, const void *b) {
 int
 config_has(struct config *c, const char * accessor_string, const char *value) {
     struct word_trie *t = NULL;
-    if((t = trie_get_path(c->trie, accessor_string)) && t->data) {    
-        struct lnode *l = (struct lnode *)t->data;
-        return list_has(l, (void *)value, cmp_str);
+    if((t = trie_get_path(c->trie, accessor_string)) && !TAILQ_EMPTY(&t->leafs)) {    
+        struct leaf_list *lfls = NULL;
+        TAILQ_FOREACH(lfls, &t->leafs, leaf) {
+            if(!cmp_str((void *)value, lfls->data)) {
+                return 1;
+            }
+        } 
     }
     return 0;
 }
 
 int
 config_flush(struct config *c) {
-    char linebuf[1024] = 0;
+    char linebuf[1024] = "";
 
     trie_print(c->trie);
     return 1;
