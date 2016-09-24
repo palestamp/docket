@@ -45,6 +45,7 @@ struct word_trie * trie_get_path(struct word_trie *, const char * path);
 
 struct word_trie * trie_add(struct word_trie *t, const char *word);
 struct word_trie * trie_insert_path(struct word_trie *, const char * path);
+void trie_insert_by_path(struct word_trie *trie, const char *path, void *data);
 
 void trie_sort(struct word_trie *t, cmpfn comporator);
 void trie_print(struct word_trie *t);
@@ -52,9 +53,17 @@ void trie_print(struct word_trie *t);
 /*
  * Iterating
  */
+#define TRIE_LOOP_INIT(_var) do {   \
+    (_var)->edge_offset = 0;          \
+    TAILQ_INIT(&(_var)->stack);       \
+} while(0)
+
 typedef int(*loop_guard)(struct word_trie *wt);
 struct trie_loop * trie_loop_branch(struct word_trie *t, struct trie_loop *loop, loop_guard guard_fn);
+
+char *loop_stack_sprint(struct trie_loop *loop);
 void loop_stack_print(struct trie_loop *loop);
+char *loop_stack_sprint_kv(struct trie_loop *loop);
 
 /* utility functions */
 int trie_sort_path_label_asc(const void *a, const void *b);

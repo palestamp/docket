@@ -10,8 +10,10 @@ add_executable(docket
     config.c
     trie.c
     strbuf.c
+    cfdm.c
+    scanner.c
 )
- 
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -O0 -ggdb") 
 target_include_directories(docket PUBLIC
     ${CMAKE_CURRENT_LIST_DIR}
 )

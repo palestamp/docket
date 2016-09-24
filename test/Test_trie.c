@@ -157,15 +157,38 @@ void test_trie_loop(void) {
 	trie_insert_path(root, "projects:metadb");
 	trie_insert_path(root, "projects:rtq");
 
-	struct trie_loop *loop = malloc(sizeof(struct trie_loop));
-	loop->edge_offset = 0;
-	TAILQ_INIT(&loop->stack);
+	struct trie_loop loop = {0};
+    struct trie_loop *loop_ptr = &loop;
+	TRIE_LOOP_INIT(&loop);
+
 	while(1) {
-		if (loop == NULL) break;
-		loop_stack_print(loop);
-		loop = trie_loop_branch(root, loop, trie_last_level) ;
+        loop_ptr = trie_loop_branch(root, loop_ptr, trie_last_level) ;
+		if (loop_ptr == NULL) break;
+		loop_stack_print(loop_ptr);
 	};
 }
+
+void test_insert_by_path(void) {
+	struct word_trie *root = trie_new();
+    const char *first = "first";
+    const char *second = "second";
+    const char *third = "third";
+    const char *fourth = "fourth";
+
+	trie_insert_by_path(root, "programming:langs:c", (void *)first);
+	trie_insert_by_path(root, "programming:langs:c", (void *)second);
+	trie_insert_by_path(root, "programming:langs:c", (void *)third);
+	trie_insert_by_path(root, "programming:langs:c", (void *)fourth);
+
+    struct word_trie *req = trie_get_path(root, "programming:langs:c"); 
+    if (req) {
+        struct leaf_list *entry = NULL; 
+        TAILQ_FOREACH(entry, &req->leafs, leaf) {
+            printf("%s\n", (char *)entry->data);
+        }
+    }
+}
+
 
 int
 main(void) {
@@ -176,5 +199,6 @@ main(void) {
 	RUN_TEST(test_trie_insert_path2);
 	RUN_TEST(test_trie_insert_path_many);
 	RUN_TEST(test_trie_loop);
+	RUN_TEST(test_insert_by_path);
 	UNITY_END();
 }

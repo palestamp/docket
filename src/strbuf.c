@@ -3,6 +3,8 @@
 #include <stdlib.h>
 #include <stdio.h>
 
+#define SLICE_MAX_BUF 1024
+
 /*
  * Originaly written by Pelle Johansson 
  */
@@ -38,4 +40,13 @@ bufcat(char **buf, int *buf_len, int *buf_pos, const char *fmt, ...) {
 
 	va_end(ap);
 	return res;
+}
+
+
+char *
+copy_slice(const char *start_ptr, size_t len) {
+    char *buffer = malloc(len + 1);
+    memcpy(buffer, start_ptr, len);
+    buffer[len] = '\0';
+    return buffer;
 }

@@ -2,12 +2,14 @@
 #define _H_CONFIG
 
 #include <sys/queue.h>
+#include <stdio.h>
 
 #include "trie.h"
 
 
 struct config {
     struct word_trie *trie;
+    FILE *cf;
 };
 
 /*
@@ -15,6 +17,7 @@ struct config {
  */
 int create_config_file(void);
 
+FILE * config_open(const char *flags);
 /*
  * Check if $HOME/.docket exists
  */
@@ -44,7 +47,8 @@ int config_has(struct config *, const char *accessor_string, const char *value);
 
 int config_add(struct config *, const char *accessor_string, const char *value);
 
-int config_flush(struct config *);
+int config_flush(struct config *, char **);
+int config_sync(struct config *c);
 
 
 #endif

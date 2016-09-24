@@ -70,12 +70,13 @@ trie_add(struct word_trie *t, const char *word) {
     return n;
 }
 
+#define MAX_PATH_CHUNK_LEN 64
 struct word_trie *
 trie_over_path_apply(trie_path_iter_cb cb, struct word_trie *t, const char *path) {
     struct word_trie *trie = t;
     char *cursor = (char *)path;
 
-    char localbuffer[64] = {0};
+    char localbuffer[MAX_PATH_CHUNK_LEN] = {0};
     int l = 0;
     int r = 0;
     while(1) {
@@ -92,7 +93,7 @@ trie_over_path_apply(trie_path_iter_cb cb, struct word_trie *t, const char *path
                 return NULL;
             }
 
-            memset(localbuffer, 0, 64);
+            memset(localbuffer, 0, MAX_PATH_CHUNK_LEN);
             if(*(cursor + r) == '\0') {
                 break;
             }
@@ -107,6 +108,7 @@ struct word_trie *
 trie_insert_path(struct word_trie *t, const char *path) {
     return trie_over_path_apply(trie_add, t, path);
 }
+
 
 void trie_insert_by_path(struct word_trie *trie, const char *path, void *data) {
     struct word_trie *target_trie = trie_insert_path(trie, path);
@@ -151,9 +153,8 @@ trie_printX(struct word_trie *t, int l) {
 }
 
 
-
-void
-loop_stack_print(struct trie_loop *loop) {
+char *
+loop_stack_sprint(struct trie_loop *loop) {
     char *buf = NULL;
     int len = 0;
     int pos = 0;
@@ -165,8 +166,32 @@ loop_stack_print(struct trie_loop *loop) {
             format= ":%s";
         }
     }
+    return buf;
+}
+
+
+void
+loop_stack_print(struct trie_loop *loop) {
+    char *buf = loop_stack_sprint(loop);
     printf("%s\n", buf);
     free(buf);
+}
+
+char *
+loop_stack_sprint_kv(struct trie_loop *loop) {
+    struct word_trie *trie = TAILQ_LAST(&loop->stack, loop_head);
+    char *buf = NULL;
+    char *path_buf = NULL;
+    int len = 0;
+    int pos = 0;
+    if (trie) {
+        char *path_buf = loop_stack_sprint(loop);
+        struct leaf_list *entry = NULL;
+        TAILQ_FOREACH(entry, &trie->leafs, leaf) {
+            bufcat(&buf, &len, &pos, "%s=%s\n", path_buf, (char *)entry->data);
+        }
+    }
+    return buf; 
 }
 
 

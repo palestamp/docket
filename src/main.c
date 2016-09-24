@@ -54,8 +54,12 @@ main(int argc, const char **argv) {
         argc--;
     }
     struct command *cmd = get_command(root_cmd);
-    if (cmd) 
-        return handle_cmd(cmd, argc, argv);
+    if (cmd) { 
+        if (handle_cmd(cmd, argc, argv) == 0) {
+            cmd = get_command("help");
+            return handle_cmd(cmd, argc, argv);
+        }
+    }
 
     return 0;
 }

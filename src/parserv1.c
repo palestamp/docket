@@ -4,6 +4,7 @@
 
 #include "trie.h"
 #include "cfdm.h"
+#include "scanner.h"
 
 /*
  * Top-level lexing
@@ -18,24 +19,6 @@
  */
 
 
-#define SCANNER_LINE_START 0
-#define SCANNER_POS_START  0
-
-struct scanner {
-    unsigned char *buf;
-    size_t pos;
-    size_t line;
-    size_t lpos;
-};
-
-
-void
-scanner_own_cfdm(struct scanner *s, struct cfdmap *m) {
-    s->pos = 0;
-    s->line = SCANNER_LINE_START;
-    s->lpos = SCANNER_POS_START;
-    s->buf = m->map;
-}
 
 
 unsigned char *
@@ -44,8 +27,8 @@ get_header(struct scanner *s, int *len, int *sc) {
     while(*cursor) {
         // If we in the beginning of buf or '[' - first elem in line
         if(*cursor == '[' && ((s->pos == 0) || (*(cursor - 1) == '\n'))) {
-            unsigned char *subcursor = cursor;
             while(1) {
+                unsigned char *subcursor = cursor;
                 subcursor++;
                 s->pos++;
                 (*len)++;
