@@ -13,6 +13,7 @@ int cmd_help(int argc, const char **argv) {
 
 static const struct command commands[] = {
     {"add", cmd_add},
+    {"list", cmd_list},
     {"help", cmd_help},
     {NULL, NULL},
 };

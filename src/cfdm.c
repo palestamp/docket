@@ -3,7 +3,7 @@
 
 #include "cfdm.h"
 
-unsigned char *
+char *
 map_file(const char *filename, size_t *len) {
     int fd;
     struct stat sb;
@@ -21,7 +21,7 @@ map_file(const char *filename, size_t *len) {
         fprintf(stderr, "%s is not a file\n", filename);
         return 0;
     }
-    unsigned char *map = mmap(0, sb.st_size, PROT_READ, MAP_PRIVATE , fd, 0);
+    char *map = mmap(0, sb.st_size, PROT_READ, MAP_PRIVATE , fd, 0);
     if(close(fd) == -1) {
         perror("close");
         return 0;

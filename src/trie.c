@@ -114,7 +114,7 @@ void trie_insert_by_path(struct word_trie *trie, const char *path, void *data) {
     struct word_trie *target_trie = trie_insert_path(trie, path);
     struct leaf_list *list = malloc(sizeof(struct leaf_list));
     list->data = data;
-    TAILQ_INSERT_TAIL(&target_trie->leafs, list, leaf); 
+    TAILQ_INSERT_TAIL(&target_trie->leafs, list, leaf);
 }
 
 
@@ -134,7 +134,7 @@ trie_sort(struct word_trie *t, int(*cmpfn)(const void *, const void *)) {
 }
 
 
-void 
+void
 trie_print(struct word_trie *t) {
     trie_printX(t, 0);
 }
@@ -161,7 +161,7 @@ loop_stack_sprint(struct trie_loop *loop) {
     struct word_trie *l = NULL;
     char *format = "%s";
     TAILQ_FOREACH(l , &loop->stack, tries) {
-        if (l->word) { 
+        if (l->word) {
             bufcat(&buf, &len, &pos, format, l->word);
             format= ":%s";
         }
@@ -177,6 +177,7 @@ loop_stack_print(struct trie_loop *loop) {
     free(buf);
 }
 
+
 char *
 loop_stack_sprint_kv(struct trie_loop *loop) {
     struct word_trie *trie = TAILQ_LAST(&loop->stack, loop_head);
@@ -191,7 +192,7 @@ loop_stack_sprint_kv(struct trie_loop *loop) {
             bufcat(&buf, &len, &pos, "%s=%s\n", path_buf, (char *)entry->data);
         }
     }
-    return buf; 
+    return buf;
 }
 
 
@@ -207,7 +208,7 @@ trie_loopX2(struct word_trie *trie, struct trie_loop *loop, loop_guard guard_fn)
         return trie_loopX2(trie, loop, guard_fn);
     } else {
         // get trie node to process
-        struct word_trie *last = TAILQ_LAST(&loop->stack, loop_head); 
+        struct word_trie *last = TAILQ_LAST(&loop->stack, loop_head);
 
 
         // if latest node have right sibling - iterate over them
@@ -223,26 +224,27 @@ trie_loopX2(struct word_trie *trie, struct trie_loop *loop, loop_guard guard_fn)
             }
         } else {
             // we in leaf node
-            // get position of current node in parent edges 
+            // get position of current node in parent edges
             int sibling_pos = last->pos;
 
             // remove current node
             TAILQ_REMOVE(&loop->stack, last, tries);
 
             // grab parent of current node
-            last = TAILQ_LAST(&loop->stack, loop_head); 
+            last = TAILQ_LAST(&loop->stack, loop_head);
             loop->edge_offset = sibling_pos + 1;
             // recursing case we already have this nodes
-            return trie_loopX2(last, loop, guard_fn); 
+            return trie_loopX2(last, loop, guard_fn);
         }
     }
 }
 
 
-struct trie_loop * 
+struct trie_loop *
 trie_loop_branch(struct word_trie *t, struct trie_loop *loop, loop_guard guard_fn) {
     return trie_loopX2(t, loop, guard_fn);
 }
+
 
 int
 trie_sort_path_label_asc(const void *a, const void *b) {
@@ -281,6 +283,15 @@ trie_sort_path_label_desc(const void *a, const void *b) {
         return -1;
     }
     return -strcmp(aw, bw);
+}
+
+
+int
+trie_filter_has_leafs(struct word_trie *trie) {
+    if(!TAILQ_EMPTY(&trie->leafs)) {
+        return 1;
+    }
+    return 0;
 }
 
 

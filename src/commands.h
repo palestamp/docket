@@ -3,5 +3,6 @@
 
 #include "command.h"
 extern int cmd_add(int argc, const char **argv);
+extern int cmd_list(int argc, const char **argv);
 
 #endif

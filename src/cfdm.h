@@ -14,12 +14,12 @@
  */
 
 struct cfdmap {
-    unsigned char *map;
+    char *map;
     size_t size;
 };
 
 
-unsigned char* map_file(const char *filename, size_t *len);
+char* map_file(const char *filename, size_t *len);
 void map(const char *filename, struct cfdmap *c);
 
 #endif

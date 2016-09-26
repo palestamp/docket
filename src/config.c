@@ -10,13 +10,17 @@
 #include "strbuf.h"
 #include "scanner.h"
 
+
+#ifndef DOCKET_CONFIG_NAME
+#define DOCKET_CONFIG_NAME ".docket"
+#endif
+
 const char *
 get_config_path(void) {
-    char pathbuf[PATH_MAX] = {0};     
-    sprintf(pathbuf, "%s/.docket", getenv("HOME"));
+    char pathbuf[PATH_MAX] = {0};
+    sprintf(pathbuf, "%s/%s", getenv("HOME"), DOCKET_CONFIG_NAME);
     return (const char *)strdup(pathbuf);
 }
-
 
 
 int
@@ -31,14 +35,16 @@ config_exists(void) {
     return 0;
 }
 
-int 
+
+int
 create_config_file(void) {
     FILE *config = config_open("a+");
     fclose(config);
     return 1;
 }
 
-int 
+
+int
 config_sync(struct config *c) {
     char *buf = NULL;
     config_flush(c, &buf);
@@ -46,6 +52,7 @@ config_sync(struct config *c) {
     free(buf);
     return 1;
 }
+
 
 struct config *
 config_create(void) {
@@ -55,6 +62,7 @@ config_create(void) {
     return c;
 }
 
+
 FILE *
 config_open(const char *flags) {
     const char *config_path = get_config_path();
@@ -62,6 +70,7 @@ config_open(const char *flags) {
     free((void *)config_path);
     return cf;
 }
+
 
 struct config *
 config_load(void) {
@@ -75,11 +84,12 @@ config_load(void) {
     const char *config_path = get_config_path();
 
     map(config_path, m);
+    free((void *)config_path);
+
     scanner_own_cfdm(s, m);
-    
-    char *cursor = NULL;
-    cursor = (char *)SCANNER_CURSOR(s);
-newline:
+
+    char *cursor = (char *)SCANNER_CURSOR(s);
+
     while(*cursor) {
         if((*(cursor - 1) == '\n') || (s->pos == 0)) {
             /* if line starts with any non-alphabetic character - skip this line */
@@ -90,10 +100,9 @@ newline:
             char *ptr_delim = strchr(cursor, '=');
             char *alloced_path = copy_slice(cursor, ptr_delim - cursor);
             cursor = ptr_delim + 1;
-            
-            
+
             ptr_delim = strchr(cursor, '\n');
-            char *alloced_data = copy_slice(cursor, ptr_delim - cursor);    
+            char *alloced_data = copy_slice(cursor, ptr_delim - cursor);
 
             trie_insert_by_path(c->trie, alloced_path, (void *)alloced_data);
             free(alloced_path);
@@ -101,10 +110,10 @@ newline:
         SCANNER_ADVANCE(s);
         cursor++;
     }
-   
-    
+
     return c;
 }
+
 
 int
 config_add(struct config *c, const char * accessor_string, const char *value) {
@@ -117,8 +126,8 @@ config_add(struct config *c, const char * accessor_string, const char *value) {
     node->data = (void *)strdup(value);
     TAILQ_INSERT_TAIL(&t->leafs, node, leaf);
     return 1;
-
 }
+
 
 static int
 cmp_str(const void *a, const void *b) {
@@ -131,28 +140,23 @@ cmp_str(const void *a, const void *b) {
     return strcmp(ad, bd);
 }
 
+
 int
 config_has(struct config *c, const char * accessor_string, const char *value) {
     struct word_trie *t = NULL;
-    if((t = trie_get_path(c->trie, accessor_string)) && !TAILQ_EMPTY(&t->leafs)) {    
+    if((t = trie_get_path(c->trie, accessor_string)) && !TAILQ_EMPTY(&t->leafs)) {
         struct leaf_list *lfls = NULL;
         TAILQ_FOREACH(lfls, &t->leafs, leaf) {
-            printf("%s", (char *)lfls->data);
             if(!cmp_str((void *)value, lfls->data)) {
                 return 1;
             }
-        } 
+        }
     }
     return 0;
 }
 
-static int
-trie_filter_has_leafs(struct word_trie *trie) {
-    if(!TAILQ_EMPTY(&trie->leafs)) {
-        return 1;
-    }
-    return 0;
-}
+
+
 
 int
 config_flush(struct config *c, char **buf) {
@@ -169,7 +173,9 @@ config_flush(struct config *c, char **buf) {
     return 1;
 }
 
-void 
+
+void
 config_free(struct config *c) {
     return ;
 }
+

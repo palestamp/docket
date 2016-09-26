@@ -1,11 +1,12 @@
 #ifndef _H_CONFIG
 #define _H_CONFIG
 
-#include <sys/queue.h>
 #include <stdio.h>
 
 #include "trie.h"
 
+
+#define DCT_CONFIG_SOURCES_TRIE_PATH "docket:settings:sources"
 
 struct config {
     struct word_trie *trie;

@@ -19,16 +19,50 @@
  */
 
 
+int
+get_title(struct scanner *s, int *len) {
+    *len = 0;
 
+    char *cursor = SCANNER_CURSOR(s);
+    if(*cursor == '@' && *(cursor + 1) == '@') {
+        while(*cursor != '\n') {
+            (*len)++;
+        }
+        return 1;
+    }
+    return 0;
+}
 
-unsigned char *
+int
+get_body(struct scanner *s, int *len) {
+    int *len = 0;
+
+    int hlen = 0;
+    int sc = 0;
+    char *cursor = SCANNER_CURSOR(s);
+    while(1) {
+        if(*cursor == '[') {
+            if(get_header(s, &hlen, &sc) == 1) {
+                SCANNER_RETREAT(s, hlen);
+                return 1;
+            }
+        } else {
+            (*len)++;
+        }
+    }
+}
+
+int
 get_header(struct scanner *s, int *len, int *sc) {
-    unsigned char *cursor = (s->buf + s->pos);
+    *len = 0;
+    *sc = 0;
+
+    char *cursor = SCANNER_CURSOR(s);
     while(*cursor) {
         // If we in the beginning of buf or '[' - first elem in line
         if(*cursor == '[' && ((s->pos == 0) || (*(cursor - 1) == '\n'))) {
             while(1) {
-                unsigned char *subcursor = cursor;
+                char *subcursor = cursor;
                 subcursor++;
                 s->pos++;
                 (*len)++;
@@ -44,18 +78,18 @@ get_header(struct scanner *s, int *len, int *sc) {
                         return cursor;
                     case '\n':
                         printf("ERROR");
-                        return NULL;
+                        return 0;
                 }
             }
 
             s->pos++;
-            return cursor;
+            return 1;
         }
 
         s->pos++;
         cursor++;
     }
-    return NULL;
+    return 0;
 }
 
 int main(int argc, const char *argv[])

@@ -16,8 +16,10 @@ struct word_trie {
     int pos;
     const char *word;
     struct word_trie **edges;
-    
+
     TAILQ_HEAD(,leaf_list) leafs;
+
+    // XXX should be in outer struct
     TAILQ_ENTRY(word_trie) tries;
 };
 
@@ -60,6 +62,9 @@ void trie_print(struct word_trie *t);
 
 typedef int(*loop_guard)(struct word_trie *wt);
 struct trie_loop * trie_loop_branch(struct word_trie *t, struct trie_loop *loop, loop_guard guard_fn);
+
+
+int trie_filter_has_leafs(struct word_trie *trie);
 
 char *loop_stack_sprint(struct trie_loop *loop);
 void loop_stack_print(struct trie_loop *loop);
