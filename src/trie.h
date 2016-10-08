@@ -27,6 +27,7 @@ struct word_trie {
 struct trie_loop {
     int edge_offset;
     int pass;
+    int depth;
     TAILQ_HEAD(loop_head ,word_trie) stack;
 };
 
@@ -55,16 +56,17 @@ void trie_print(struct word_trie *t);
 /*
  * Iterating
  */
-#define TRIE_LOOP_INIT(_var) do {   \
+#define TRIE_LOOP_INIT(_var) do {     \
     (_var)->edge_offset = 0;          \
+    (_var)->depth = -1;               \
     TAILQ_INIT(&(_var)->stack);       \
 } while(0)
 
-typedef int(*loop_guard)(struct word_trie *wt);
+typedef int(*loop_guard)(const struct word_trie *wt);
 struct trie_loop * trie_loop_branch(struct word_trie *t, struct trie_loop *loop, loop_guard guard_fn);
 
 
-int trie_filter_has_leafs(struct word_trie *trie);
+int trie_filter_has_leafs(const struct word_trie *trie);
 
 char *loop_stack_sprint(struct trie_loop *loop);
 void loop_stack_print(struct trie_loop *loop);
