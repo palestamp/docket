@@ -29,5 +29,8 @@ struct docket_shelve {
 
 struct docket_shelve *docket_shelve_load_file(const char *source_name);
 
+// utility functions
 
+char * docket_fix_title(const char *title);
+size_t docket_get_body_len(struct docket *d);
 #endif

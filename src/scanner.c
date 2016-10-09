@@ -32,23 +32,23 @@ scanner_get_body(struct scanner *s, int *len) {
     *len = 0;
 
     int hlen = 0;
-    int sc = 0;
     char *cursor = SCANNER_CURSOR(s);
     while(!SCANNER_END(s)) {
-        if(cursor) {
-            if(*cursor == '[') { // && (scanner_get_header(s, &hlen, &sc) == 1)) {
-                SCANNER_RETREAT(s, hlen);
-                return 1;
-            }  else {
-                SCANNER_ADVANCE(s);
-                cursor++;
-                (*len)++;
-            }
+        if(*cursor == '[') { // && (scanner_get_header(s, &hlen, &sc) == 1)) {
+            SCANNER_RETREAT(s, hlen);
+            return 1;
         } else {
-            return 0;
+            SCANNER_ADVANCE(s);
+            cursor++;
+            (*len)++;
         }
     }
-    return 0;
+
+    if(*len > 0) {
+        return 1;
+    } else {
+        return 0;
+    }
 }
 
 int

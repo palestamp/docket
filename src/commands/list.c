@@ -8,25 +8,6 @@
 #include "options.h"
 #include "trie.h"
 
-char *
-docket_fix_title(const char *title) {
-    if (title == NULL) {
-        return strdup("@@@@");
-    }
-
-    size_t len = strlen(title);
-    if (len > 2 && title[2] != ' ') {
-        // Nul and space
-        char *fixed = malloc(len + 2);
-        fixed[0] = '@';
-        fixed[1] = '@';
-        fixed[2] = ' ';
-        memcpy((fixed + 3), (title + 2), len - 2);
-        fixed[len + 1] = '\0';
-        return fixed;
-    }
-    return strdup(title);
-}
 
 int
 cmd_list(int argc, const char **argv) {

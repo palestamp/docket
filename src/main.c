@@ -12,16 +12,16 @@ int cmd_help(int argc, const char **argv) {
 }
 
 static const struct command commands[] = {
-    {"add", cmd_add},
-    {"list", cmd_list},
-    {"help", cmd_help},
-    {NULL, NULL},
+    {"add", cmd_add, EMPTY_FLAG},
+    {"list", cmd_list, EMPTY_FLAG},
+    {"tree", cmd_tree, EMPTY_FLAG},
+    {"help", cmd_help, EMPTY_FLAG},
+    {NULL, NULL, 0},
 };
 
 
 struct command *
 get_command(const char *name) {
-    struct command cmd = {0};
     struct command *ccmds = (struct command *)commands;
 
     for(;(*ccmds).name != NULL; ccmds++) {
@@ -46,7 +46,6 @@ handle_cmd(struct command *cmd, int argc, const char **argv) {
 int 
 main(int argc, const char **argv) {
     const char *root_cmd = NULL;
-    const char *shifted = NULL;
     if (argc == 1) {
         root_cmd = "help";
     } else {

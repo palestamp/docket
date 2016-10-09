@@ -1,5 +1,6 @@
 #include <stdlib.h>
 #include <stdio.h>
+#include <string.h>
 
 #include "scanner.h"
 #include "strbuf.h"
@@ -70,9 +71,36 @@ docket_shelve_load_file(const char *source_name) {
             if(scanner_get_body(s, &len) == 1) {
                 d->body = copy_slice(SCANNER_CURSOR(s) - len, len);
             }
-
             trie_insert_by_path(ds->trie, d->head, (void *)d);
         }
     }
     return ds;
+}
+
+char *
+docket_fix_title(const char *title) {
+    if (title == NULL) {
+        return strdup("@@@@");
+    }
+
+    size_t len = strlen(title);
+    if (len > 2 && title[2] != ' ') {
+        // Nul and space
+        char *fixed = malloc(len + 2);
+        fixed[0] = '@';
+        fixed[1] = '@';
+        fixed[2] = ' ';
+        memcpy((fixed + 3), (title + 2), len - 2);
+        fixed[len + 1] = '\0';
+        return fixed;
+    }
+    return strdup(title);
+}
+
+size_t
+docket_get_body_len(struct docket *d) {
+    if (d->body) {
+        return strlen(d->body);
+    }
+    return 0;
 }

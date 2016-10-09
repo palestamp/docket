@@ -1,6 +1,7 @@
 cmake_minimum_required (VERSION 2.6)
 
 set(CMAKE_C_COMPILER gcc)
+SET(CMAKE_C_FLAGS "-Wall -Wextra")
 
 project ("cowl" C)
 
@@ -13,8 +14,8 @@ set(TARGET_GROUP production CACHE STRING "Group to build")
 add_subdirectory(src)
 
 
-if(TARGET_GROUP STREQUAL production)
-elseif(TARGET_GROUP STREQUAL test)
+if(FLAVOUR STREQUAL production)
+elseif(FLAVOUR STREQUAL test)
     include(CTest)
 
     add_subdirectory(external)
