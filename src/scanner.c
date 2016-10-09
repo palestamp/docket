@@ -31,17 +31,15 @@ int
 scanner_get_body(struct scanner *s, int *len) {
     *len = 0;
 
-    int hlen = 0;
     char *cursor = SCANNER_CURSOR(s);
     while(!SCANNER_END(s)) {
-        if(*cursor == '[') { // && (scanner_get_header(s, &hlen, &sc) == 1)) {
-            SCANNER_RETREAT(s, hlen);
+        // if we have header-like string - return
+        if(*cursor == '[' && ((s->pos == 0) || (*(cursor - 1) == '\n'))) {
             return 1;
-        } else {
-            SCANNER_ADVANCE(s);
-            cursor++;
-            (*len)++;
         }
+        SCANNER_ADVANCE(s);
+        cursor++;
+        (*len)++;
     }
 
     if(*len > 0) {
@@ -76,7 +74,7 @@ scanner_get_header(struct scanner *s, int *len, int *sc) {
                         SCANNER_ADVANCE(s);
                         return 1;
                     case '\n':
-                        printf("ERROR");
+                        fprintf(stderr, "HEADER_ERROR");
                         return 0;
                 }
 
