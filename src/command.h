@@ -1,8 +1,6 @@
 #ifndef _H_COMMAND
 #define _H_COMMAND
 
-#include "command.h"
-
 enum command_flags {
     EMPTY_FLAG = 0,
     HAVE_SOURCES = 1,
