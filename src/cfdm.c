@@ -10,25 +10,25 @@ map_file(const char *filename, size_t *len) {
 
     if((fd = open(filename, O_RDONLY)) < 0) {
         perror("open");
-        return 0;
+        return NULL;
     }
 
     if(stat(filename, &sb) != 0) {
         perror("fstat");
-        return 0;
+        return NULL;
     }
     if(!S_ISREG(sb.st_mode)) {
         fprintf(stderr, "%s is not a file\n", filename);
-        return 0;
+        return NULL;
     }
     char *map = mmap(0, sb.st_size, PROT_READ, MAP_PRIVATE , fd, 0);
     if(close(fd) == -1) {
         perror("close");
-        return 0;
+        return NULL;
     }
     if (map == MAP_FAILED) {
         perror("mmap");
-        return 0;
+        return NULL;
     }
 
     *len = sb.st_size;
