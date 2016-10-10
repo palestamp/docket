@@ -215,7 +215,7 @@ trie_loopX2(struct word_trie *trie, struct trie_loop *loop, loop_guard guard_fn)
         if(last->len > 0 && *(last->edges + loop->edge_offset)) {
             struct word_trie *newt = *(last->edges + loop->edge_offset);
             TAILQ_INSERT_TAIL(&loop->stack, newt, tries);
-            
+
             loop->edge_offset = 0;
             loop->depth += 1;
             if (guard_fn(newt)) {
@@ -233,7 +233,7 @@ trie_loopX2(struct word_trie *trie, struct trie_loop *loop, loop_guard guard_fn)
 
             // grab parent of current node
             last = TAILQ_LAST(&loop->stack, loop_head);
-           
+
             loop->edge_offset = sibling_pos + 1;
             loop->depth -= 1;
             // recursing case we already have this nodes
@@ -248,6 +248,16 @@ trie_loop_branch(struct word_trie *t, struct trie_loop *loop, loop_guard guard_f
     return trie_loopX2(t, loop, guard_fn);
 }
 
+struct word_trie *
+trie_loop_children(struct word_trie *cell, struct word_trie *host) {
+    // first iteration
+    if (cell == NULL) {
+        cell = host->edges[0];
+    } else if (cell->pos < host->len){
+        cell = host->edges[cell->pos + 1];
+    }
+    return cell;
+}
 
 int
 trie_sort_path_label_asc(const void *a, const void *b) {

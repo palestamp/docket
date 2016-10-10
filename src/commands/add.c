@@ -32,16 +32,16 @@ cmd_add(int argc, const char **argv) {
 
     if(config_exists()) {
         c = config_load();
-        if(config_has(c, DCT_CONFIG_SOURCES_TRIE_PATH, source_path)) {
+        if(config_has_source(c, DCT_CONFIG_SOURCES_TRIE_PATH, source_path)) {
             config_free(c);
         } else {
-            config_add(c, DCT_CONFIG_SOURCES_TRIE_PATH, source_path);
+            config_add_source(c, DCT_CONFIG_SOURCES_TRIE_PATH, source_path);
             config_sync(c);
             config_free(c);
         }
     } else {
         c = config_create();
-        config_add(c, DCT_CONFIG_SOURCES_TRIE_PATH, source_path);
+        config_add_source(c, DCT_CONFIG_SOURCES_TRIE_PATH, source_path);
         config_sync(c);
         config_free(c);
 

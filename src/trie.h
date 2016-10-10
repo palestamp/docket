@@ -65,6 +65,7 @@ void trie_print(struct word_trie *t);
 typedef int(*loop_guard)(const struct word_trie *wt);
 struct trie_loop * trie_loop_branch(struct word_trie *t, struct trie_loop *loop, loop_guard guard_fn);
 
+struct word_trie *trie_loop_children(struct word_trie *cell, struct word_trie *host);
 
 int trie_filter_has_leafs(const struct word_trie *trie);
 

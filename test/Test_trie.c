@@ -158,7 +158,7 @@ void test_trie_loop(void) {
     struct trie_loop *loop_ptr = &loop;
     TRIE_LOOP_INIT(&loop);
 
-    int i = 0;	
+    int i = 0;
 
     while(1) {
         memset(test_buf, 0, 1024);
@@ -188,11 +188,11 @@ void test_insert_by_path(void) {
     trie_insert_by_path(root, "programming:langs:c", (void *)(comp[2]));
     trie_insert_by_path(root, "programming:langs:c", (void *)(comp[3]));
 
-    struct word_trie *req = trie_get_path(root, "programming:langs:c"); 
+    struct word_trie *req = trie_get_path(root, "programming:langs:c");
     if (req) {
         int i = 0;
         char buf[1024] = "";
-        struct leaf_list *entry = NULL; 
+        struct leaf_list *entry = NULL;
         TAILQ_FOREACH(entry, &req->leafs, leaf) {
             sprintf(buf, "%s", (char *)entry->data);
             TEST_ASSERT_EQUAL_STRING(buf, comp[i]);
@@ -200,6 +200,28 @@ void test_insert_by_path(void) {
         }
     } else {
         TEST_FAIL();
+    }
+}
+
+void
+test_trie_loop_children(void) {
+    struct word_trie *root = trie_new();
+    const char *comp[] = {
+        "first",
+        "second",
+        "third",
+        "fourth",
+        NULL
+    };
+    trie_insert_by_path(root, "programming:langs:c:0", (void *)(comp[0]));
+    trie_insert_by_path(root, "programming:langs:c:1", (void *)(comp[1]));
+    trie_insert_by_path(root, "programming:langs:c:2", (void *)(comp[2]));
+    trie_insert_by_path(root, "programming:langs:c:3", (void *)(comp[3]));
+
+    root = trie_get_path(root, "programming:langs:c");
+    struct word_trie *loop_trie = NULL;
+    while((loop_trie = trie_loop_children(loop_trie, root))) {
+        fprintf(stderr, "%s", loop_trie->word);
     }
 }
 
@@ -212,6 +234,7 @@ main(void) {
     RUN_TEST(test_trie_insert_path);
     RUN_TEST(test_trie_insert_path2);
     RUN_TEST(test_trie_loop);
+    RUN_TEST(test_trie_loop_children);
     RUN_TEST(test_insert_by_path);
 
     return UNITY_END();

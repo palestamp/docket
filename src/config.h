@@ -45,8 +45,10 @@ void config_free(struct config *);
  * Check if config has value on accessor_string path
  */
 int config_has(struct config *, const char *accessor_string, const char *value);
+int config_has_source(struct config *, const char *accessor_string, const char *value);
 
 int config_add(struct config *, const char *accessor_string, const char *value);
+int config_add_source(struct config *, const char *accessor_string, const char *value);
 
 int config_flush(struct config *, char **);
 int config_sync(struct config *c);

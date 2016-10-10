@@ -150,20 +150,25 @@ cmd_tree(int argc, const char **argv) {
         return 0;//DCT_NO_CONFIG_FOUND;
     }
     c = config_load();
-    struct word_trie *trie = trie_get_path(c->trie, DCT_CONFIG_SOURCES_TRIE_PATH);
+    struct word_trie *root = trie_get_path(c->trie, DCT_CONFIG_SOURCES_TRIE_PATH);
 
-    if (trie == NULL) {
-        return 0;//DCT_NO_SOURCES_FOUND;
-    }
+    struct word_trie *loop_trie = NULL;
+    while((loop_trie = trie_loop_children(loop_trie, root))) {
+        struct word_trie *trie = trie_get_path(loop_trie, "source");
 
-    struct leaf_list *leaf = NULL;
-    TAILQ_FOREACH(leaf, &trie->leafs, leaf) {
-        if(access((const char *)leaf->data, R_OK) != 0) {
-            return 0; // DCT_NO_ACCESS
+        if (trie == NULL) {
+            return 0;//DCT_NO_SOURCES_FOUND;
         }
-        struct tree_padding padding = {.offsets = {0}, .buf = "", .offcursor = 1};
-        struct docket_shelve *ds = docket_shelve_load_file((const char *)leaf->data);
-        print_docket_node(ds->trie, &padding);
+
+        struct leaf_list *leaf = NULL;
+        TAILQ_FOREACH(leaf, &trie->leafs, leaf) {
+            if(access((const char *)leaf->data, R_OK) != 0) {
+                return 0; // DCT_NO_ACCESS
+            }
+            struct tree_padding padding = {.offsets = {0}, .buf = "", .offcursor = 1};
+            struct docket_shelve *ds = docket_shelve_load_file((const char *)leaf->data);
+            print_docket_node(ds->trie, &padding);
+        }
     }
     return 1;
 }
