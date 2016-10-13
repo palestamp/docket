@@ -1,7 +1,8 @@
-#include <stdlib.h>
 #include <string.h>
+#include <stdlib.h>
 #include "unity.h"
 #include "../src/trie.h"
+#include "../src/filter.h"
 
 void test_trie_get_path(void) {
     struct word_trie *root = trie_new();
@@ -125,7 +126,7 @@ void test_trie_loop(void) {
     trie_insert_path(root, "projects:metadb");
     trie_insert_path(root, "projects:rtq");
 
-    char test_buf[1024];
+    char test_buf[1024] = "";
 
     char *comp[] = {
         "2 programming:common:books",
@@ -170,7 +171,40 @@ void test_trie_loop(void) {
             TEST_ASSERT_EQUAL_STRING(comp[i], test_buf);
             i++;
         }
+    }
+}
+
+void test_loop_branch_one_node(void) {
+    struct word_trie *root = trie_new();
+    trie_insert_path(root, "programming");
+    trie_insert_path(root, "langs");
+    trie_insert_path(root, "git");
+    trie_insert_path(root, "python");
+
+    char test_buf[1024] = "";
+    char *comp[] = {
+        "0 programming",
+        "0 langs",
+        "0 git",
+        "0 python",
+        NULL
     };
+
+    struct trie_loop loop = {0};
+    struct trie_loop *loop_ptr = &loop;
+    TRIE_LOOP_INIT(&loop);
+    int i = 0;
+    while(1) {
+        memset(test_buf, 0, 1024);
+        loop_ptr = trie_loop_branch(root, loop_ptr, trie_last_level) ;
+        if (loop_ptr == NULL) break;
+        sprintf(test_buf, "%d %s" ,loop_ptr->depth,  loop_stack_sprint(loop_ptr));
+
+        if (comp[i] != NULL) {
+            TEST_ASSERT_EQUAL_STRING(comp[i], test_buf);
+            i++;
+        }
+    }
 }
 
 void test_insert_by_path(void) {
@@ -226,6 +260,31 @@ test_trie_loop_children(void) {
 }
 
 
+void test_filter_branch_simple(void) {
+    struct word_trie *root = trie_new();
+    trie_insert_path(root, "1:2:3:4:5:6");
+    trie_insert_path(root, "1:a:3:4:5:6");
+    trie_insert_path(root, "1:a:3:4:5:6");
+    trie_insert_path(root, "1:a:3:4:5:6");
+    trie_insert_path(root, "1:a:3:4:5:6");
+    trie_insert_path(root, "1:a:3:4:5:6");
+    trie_insert_path(root, "1:a:3:4:5:6");
+    trie_insert_path(root, "1:a:3:4:5:g");
+
+    struct trie_loop loop = {0};
+    struct trie_loop *loop_ptr = &loop;
+    struct path_filter *pf = compile_filter_from_s("1:*:*:*:*:g");
+    TRIE_LOOP_INIT(&loop);
+    char buf[1024] = "";
+    while(1) {
+        loop_ptr = trie_filter_branch(root, loop_ptr, trie_last_level, pf) ;
+        if (loop_ptr == NULL) break;
+        sprintf(buf, "%d %s", loop_ptr->depth,  loop_stack_sprint(loop_ptr));
+        TEST_ASSERT_EQUAL_STRING(buf, "5 1:a:3:4:5:g");
+    }
+}
+
+
 int
 main(void) {
     UNITY_BEGIN();
@@ -236,6 +295,7 @@ main(void) {
     RUN_TEST(test_trie_loop);
     RUN_TEST(test_trie_loop_children);
     RUN_TEST(test_insert_by_path);
-
+    RUN_TEST(test_loop_branch_one_node);
+    RUN_TEST(test_filter_branch_simple);
     return UNITY_END();
 }

@@ -43,7 +43,7 @@ handle_cmd(struct command *cmd, int argc, const char **argv) {
 }
 
 
-int 
+int
 main(int argc, const char **argv) {
     const char *root_cmd = NULL;
     if (argc == 1) {
@@ -54,7 +54,7 @@ main(int argc, const char **argv) {
         argc--;
     }
     struct command *cmd = get_command(root_cmd);
-    if (cmd) { 
+    if (cmd) {
         if (handle_cmd(cmd, argc, argv) == 0) {
             cmd = get_command("help");
             return handle_cmd(cmd, argc, argv);

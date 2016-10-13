@@ -1,7 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-
 #include "strbuf.h"
 #include "trie.h"
 
@@ -194,9 +193,11 @@ loop_stack_sprint_kv(struct trie_loop *loop) {
     return buf;
 }
 
-
+// XXX Sure that guard_fn works with one-node branch
 static struct trie_loop *
 trie_loopX2(struct word_trie *trie, struct trie_loop *loop, loop_guard guard_fn) {
+    // this is always root node which basicaly can not store any information
+    // therefore we can skip guard_fn on it still it non-informative
     if(TAILQ_EMPTY(&loop->stack)) {
         if(loop->pass != 0) {
             return NULL;
@@ -214,10 +215,11 @@ trie_loopX2(struct word_trie *trie, struct trie_loop *loop, loop_guard guard_fn)
         // else - go to the upper level
         if(last->len > 0 && *(last->edges + loop->edge_offset)) {
             struct word_trie *newt = *(last->edges + loop->edge_offset);
-            TAILQ_INSERT_TAIL(&loop->stack, newt, tries);
 
             loop->edge_offset = 0;
             loop->depth += 1;
+
+            TAILQ_INSERT_TAIL(&loop->stack, newt, tries);
             if (guard_fn(newt)) {
                 return loop;
             } else {
@@ -242,10 +244,76 @@ trie_loopX2(struct word_trie *trie, struct trie_loop *loop, loop_guard guard_fn)
     }
 }
 
+;
+
+
+
+static struct trie_loop *
+trie_loopX3(struct word_trie *trie, struct trie_loop *loop, loop_guard guard_fn,
+        struct path_filter *pf) {
+    // this is always root node which basicaly can not store any information
+    // therefore we can skip guard_fn on it still it non-informative
+    if(TAILQ_EMPTY(&loop->stack)) {
+        if(loop->pass != 0) {
+            return NULL;
+        }
+
+        loop->pass = 1;
+        TAILQ_INSERT_TAIL(&loop->stack, trie, tries);
+        return trie_loopX3(trie, loop, guard_fn, pf);
+    } else {
+        // get trie node to process
+        struct word_trie *last = TAILQ_LAST(&loop->stack, loop_head);
+
+        // if latest node have right sibling - iterate over them
+        if(last->len > 0 && *(last->edges + loop->edge_offset)) {
+            // else - go to the upper level
+            struct word_trie *newt = *(last->edges + loop->edge_offset);
+
+            loop->depth += 1;
+            if (match_filter_chunk(pf, newt->word, loop->depth) == 0) {
+                loop->edge_offset += 1;
+                loop->depth -= 1;
+                return trie_loopX3(last, loop, guard_fn, pf);
+            }
+            loop->edge_offset = 0;
+
+            TAILQ_INSERT_TAIL(&loop->stack, newt, tries);
+            // check that filter len is strictly equal to path len
+            // XXX here we can hardcode 'is_leaf guard'
+            if (pf->len - 1 == loop->depth && guard_fn(newt)) {
+                return loop;
+            } else {
+                return trie_loopX3(newt, loop, guard_fn, pf);
+            }
+        } else {
+            // we in leaf node
+            // get position of current node in parent edges
+            int sibling_pos = last->pos;
+
+            // remove current node
+            TAILQ_REMOVE(&loop->stack, last, tries);
+
+            // grab parent of current node
+            last = TAILQ_LAST(&loop->stack, loop_head);
+
+            loop->edge_offset = sibling_pos + 1;
+            loop->depth -= 1;
+            // recursing case we already have this nodes
+            return trie_loopX3(last, loop, guard_fn, pf);
+        }
+    }
+}
 
 struct trie_loop *
 trie_loop_branch(struct word_trie *t, struct trie_loop *loop, loop_guard guard_fn) {
     return trie_loopX2(t, loop, guard_fn);
+}
+
+struct trie_loop *
+trie_filter_branch(struct word_trie *t, struct trie_loop *loop,
+        loop_guard guard_fn, struct path_filter *pf) {
+    return trie_loopX3(t, loop, guard_fn, pf);
 }
 
 struct word_trie *

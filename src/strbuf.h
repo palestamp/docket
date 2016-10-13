@@ -3,6 +3,7 @@
 
 
 #include <stdarg.h>
+#include <string.h>
 
 int bufcat(char **buf, int *buf_len, int *buf_pos, const char *fmt, ...);
 char * copy_slice(const char *start_ptr, size_t len);

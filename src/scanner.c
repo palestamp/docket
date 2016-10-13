@@ -46,7 +46,7 @@ scanner_get_body(struct scanner *s, int *len) {
         return 1;
     } else {
         return 0;
-    }
+   }
 }
 
 int

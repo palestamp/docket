@@ -2,6 +2,7 @@
 #define _H_DOCKET__TRIE
 
 #include "cmpfn.h"
+#include "filter.h"
 #include <sys/queue.h>
 
 struct leaf_list {
@@ -63,7 +64,10 @@ void trie_print(struct word_trie *t);
 } while(0)
 
 typedef int(*loop_guard)(const struct word_trie *wt);
+typedef int(*filter_fn)(const struct word_trie *wt, const struct trie_loop *loop);
 struct trie_loop * trie_loop_branch(struct word_trie *t, struct trie_loop *loop, loop_guard guard_fn);
+struct trie_loop *trie_filter_branch(struct word_trie *t, struct trie_loop *loop, 
+        loop_guard guard_fn, struct path_filter *pf);
 
 struct word_trie *trie_loop_children(struct word_trie *cell, struct word_trie *host);
 

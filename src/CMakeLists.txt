@@ -1,6 +1,7 @@
 add_library(libdocket STATIC
     cfdm.c
     trie.c
+    filter.c
     strbuf.c
 )
 
@@ -9,6 +10,7 @@ add_executable(docket
     docket.c
     config.c
     trie.c
+    filter.c
     strbuf.c
     cfdm.c
     scanner.c
