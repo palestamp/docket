@@ -161,10 +161,8 @@ void test_trie_loop(void) {
 
     int i = 0;
 
-    while(1) {
+    while((loop_ptr = trie_loop_branch(root, loop_ptr, trie_last_level))) {
         memset(test_buf, 0, 1024);
-        loop_ptr = trie_loop_branch(root, loop_ptr, trie_last_level) ;
-        if (loop_ptr == NULL) break;
         sprintf(test_buf, "%d %s" ,loop_ptr->depth,  loop_stack_sprint(loop_ptr));
 
         if (comp[i] != NULL) {
@@ -194,10 +192,8 @@ void test_loop_branch_one_node(void) {
     struct trie_loop *loop_ptr = &loop;
     TRIE_LOOP_INIT(&loop);
     int i = 0;
-    while(1) {
+    while((loop_ptr = trie_loop_branch(root, loop_ptr, trie_last_level))) {
         memset(test_buf, 0, 1024);
-        loop_ptr = trie_loop_branch(root, loop_ptr, trie_last_level) ;
-        if (loop_ptr == NULL) break;
         sprintf(test_buf, "%d %s" ,loop_ptr->depth,  loop_stack_sprint(loop_ptr));
 
         if (comp[i] != NULL) {
@@ -247,15 +243,23 @@ test_trie_loop_children(void) {
         "fourth",
         NULL
     };
+
+    const char *expect[] = {"0", "1", "2", "3", NULL};
     trie_insert_by_path(root, "programming:langs:c:0", (void *)(comp[0]));
     trie_insert_by_path(root, "programming:langs:c:1", (void *)(comp[1]));
+    trie_insert_by_path(root, "programming:langs:b:1", (void *)(comp[1]));
     trie_insert_by_path(root, "programming:langs:c:2", (void *)(comp[2]));
     trie_insert_by_path(root, "programming:langs:c:3", (void *)(comp[3]));
 
     root = trie_get_path(root, "programming:langs:c");
     struct word_trie *loop_trie = NULL;
+
+    int i = 0;
     while((loop_trie = trie_loop_children(loop_trie, root))) {
-        fprintf(stderr, "%s", loop_trie->word);
+        if (expect[i]) {
+            TEST_ASSERT_EQUAL_STRING(expect[i], loop_trie->word);
+            i++;
+        }
     }
 }
 
@@ -276,9 +280,7 @@ void test_filter_branch_simple(void) {
     struct path_filter *pf = compile_filter_from_s("1:*:*:*:*:g");
     TRIE_LOOP_INIT(&loop);
     char buf[1024] = "";
-    while(1) {
-        loop_ptr = trie_filter_branch(root, loop_ptr, trie_last_level, pf) ;
-        if (loop_ptr == NULL) break;
+    while((loop_ptr = trie_filter_branch(root, loop_ptr, trie_last_level, pf))) {
         sprintf(buf, "%d %s", loop_ptr->depth,  loop_stack_sprint(loop_ptr));
         TEST_ASSERT_EQUAL_STRING(buf, "5 1:a:3:4:5:g");
     }
