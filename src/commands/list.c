@@ -44,7 +44,7 @@ cmd_list(int argc, const char **argv) {
             TRIE_LOOP_INIT(&loop);
 
             while(1) {
-                loop_ptr = trie_loop_branch(ds->trie, loop_ptr, trie_filter_has_leafs) ;
+                loop_ptr = trie_loop_branch(ds->trie, loop_ptr, trie_filter_has_data) ;
                 if (loop_ptr == NULL) break;
 
                 struct leaf_list *leaf_inner = NULL;

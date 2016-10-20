@@ -44,7 +44,12 @@ compile_filter_from_s(const char *pattern) {
 int
 match_filter_chunk(struct path_filter *pf, const char *ch, int depth) {
     if(depth < pf->len) {
-        if (pf->patterns[depth][0] == '*' || (strcmp(pf->patterns[depth], ch) == 0)) {
+        if (pf->patterns[depth][0] == '*' || pf->patterns[depth][0] == '~' ||
+                (strcmp(pf->patterns[depth], ch) == 0)) {
+            return 1;
+        }
+    } else {
+        if (pf->patterns[pf->len - 1][0] == '~') {
             return 1;
         }
     }

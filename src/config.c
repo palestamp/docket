@@ -232,7 +232,8 @@ config_flush(struct config *c, char **buf) {
 	int pos = 0;
 	TRIE_LOOP_INIT(&loop);
 	while(1) {
-		loop_ptr = trie_loop_branch(c->trie, loop_ptr, trie_filter_has_leafs) ;
+        // WARN be careful with trie_filter_branch_end
+		loop_ptr = trie_loop_branch(c->trie, loop_ptr, trie_filter_branch_end) ;
 		if (loop_ptr == NULL) break;
 		bufcat(buf,  &len, &pos, "%s", loop_stack_sprint_kv(loop_ptr));
 	}

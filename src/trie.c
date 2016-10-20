@@ -242,9 +242,7 @@ trie_loopX2(struct word_trie *trie, struct trie_loop *loop, loop_guard guard_fn)
             return trie_loopX2(last, loop, guard_fn);
         }
     }
-}
-
-;
+};
 
 
 
@@ -279,9 +277,11 @@ trie_loopX3(struct word_trie *trie, struct trie_loop *loop, loop_guard guard_fn,
             loop->edge_offset = 0;
 
             TAILQ_INSERT_TAIL(&loop->stack, newt, tries);
-            // check that filter len is strictly equal to path len
-            // XXX here we can hardcode 'is_leaf guard'
-            if (pf->len - 1 == loop->depth && guard_fn(newt)) {
+            // check that filter len is lesser or equal to path len
+            // this caused by 'tilda' nodes where filter can be  shorter than path
+            // Strictly saying left part is responsible for filtering on minimum
+            // path length and right part for node params
+            if (pf->len - 1 <= loop->depth && guard_fn(newt)) {
                 return loop;
             } else {
                 return trie_loopX3(newt, loop, guard_fn, pf);
@@ -289,7 +289,7 @@ trie_loopX3(struct word_trie *trie, struct trie_loop *loop, loop_guard guard_fn,
         } else {
             // we in leaf node
             // get position of current node in parent edges
-            int sibling_pos = last->pos;
+            int self_pos_rel_to_parent = last->pos;
 
             // remove current node
             TAILQ_REMOVE(&loop->stack, last, tries);
@@ -297,9 +297,9 @@ trie_loopX3(struct word_trie *trie, struct trie_loop *loop, loop_guard guard_fn,
             // grab parent of current node
             last = TAILQ_LAST(&loop->stack, loop_head);
 
-            loop->edge_offset = sibling_pos + 1;
+            loop->edge_offset = self_pos_rel_to_parent + 1;
             loop->depth -= 1;
-            // recursing case we already have this nodes
+            // recursing cause we already have this nodes
             return trie_loopX3(last, loop, guard_fn, pf);
         }
     }
@@ -366,14 +366,22 @@ trie_sort_path_label_desc(const void *a, const void *b) {
     return -strcmp(aw, bw);
 }
 
-
 int
-trie_filter_has_leafs(const struct word_trie *trie) {
-    if(!TAILQ_EMPTY(&trie->leafs)) {
+trie_filter_branch_end(const struct word_trie *trie) {
+	if(trie->len) {
+		return 0;
+	} else {
         return 1;
     }
-    return 0;
 }
 
+int
+trie_filter_has_data(const struct word_trie *trie) {
+    if(TAILQ_EMPTY(&trie->leafs)) {
+        return 0;
+    } else {
+        return 1;
+    }
+}
 
 
