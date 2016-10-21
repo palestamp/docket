@@ -5,8 +5,7 @@
 
 You will need CMake for developing
 
-```
-git clone https://palestamp@bitbucket.org/palestamp/docket.git
+```bash
 cd docket
 mkdir build
 cd build
@@ -15,7 +14,7 @@ make
 ```
 
 Then you can try from build directiry:
-```
+```bash
 ./src/docket add ../local.docket
 ./src/docket list
 ./src/docket tree
