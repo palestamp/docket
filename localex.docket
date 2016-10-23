@@ -121,6 +121,31 @@ Special meta section in the top of .owl file
 ## timer.commit.6.0.2.start=1476817107
 
 
+[parts:todo:timers]
+@@ Timer behaviours
+* manual - should be turned on/off manually by start/stop commands
+* hosted - can be turned on only if host already turned on, should be automatically
+turned off when host is turned off
+* dependent - should be automatically turned on and off with eventer timer/timers
+
+
+[parts:todo:timers]
+@@ Stack support
+If timer has stack support that means it can be layed on stack of timers which is internal
+setting for hosted timers: when hosted timer starts it is pushed onto host timer, then it
+can be poped/stopped manually, but if host timer exits with hosted timers on it - every
+timer is poped out from it in push reverse order.
+
+[parts:todo:timers:storage]
+@@ Meta
+timer.{timer_id}.name=<timer name, defined bu user>
+timer.{timer_id}.note=<some description>
+timer.{timer_id}.behaviour.{enumeration_id}=<manual,hosted,dependent>
+timer.{timer_id}.stack=<true,false> - look at <{rel: localex:parts:todo:timers:@@StackSupport}>
+
+[parts:todo:timers:storage]
+@@ Chuncks
+
 
 [tech:parts:body]
 @@ Parse on request

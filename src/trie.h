@@ -24,11 +24,15 @@ struct word_trie {
     TAILQ_ENTRY(word_trie) tries;
 };
 
-
+struct trie_loop;
+typedef int(*loop_guard)(const struct word_trie *wt);
+//typedef int(*filter_fn)(const struct word_trie *wt, const struct trie_loop *loop);
 struct trie_loop {
     int edge_offset;
     int pass;
     int depth;
+    loop_guard guard_fn;
+    struct path_filter *filter;
     TAILQ_HEAD(loop_head ,word_trie) stack;
 };
 
@@ -57,17 +61,24 @@ void trie_print(struct word_trie *t);
 /*
  * Iterating
  */
-#define TRIE_LOOP_INIT(_var) do {     \
+#define TRIE_LOOP_INIT(_var, _guard, _filter) do {     \
     (_var)->edge_offset = 0;          \
     (_var)->depth = -1;               \
+    (_var)->guard_fn = (_guard);      \
+    (_var)->filter = (_filter);       \
     TAILQ_INIT(&(_var)->stack);       \
 } while(0)
 
-typedef int(*loop_guard)(const struct word_trie *wt);
-typedef int(*filter_fn)(const struct word_trie *wt, const struct trie_loop *loop);
-struct trie_loop * trie_loop_branch(struct word_trie *t, struct trie_loop *loop, loop_guard guard_fn);
-struct trie_loop *trie_filter_branch(struct word_trie *t, struct trie_loop *loop,
-        loop_guard guard_fn, struct path_filter *pf);
+#define TRIE_BRANCH_LOOP_INIT(_var, _filter) do {                   \
+    TRIE_LOOP_INIT((_var), trie_filter_branch_end, (_filter));  \
+} while(0)
+
+#define TRIE_DATA_LOOP_INIT(_var, _filter) do {                   \
+    TRIE_LOOP_INIT((_var), trie_filter_has_data, (_filter));  \
+} while(0)
+
+struct trie_loop * trie_loop_branch(struct word_trie *t, struct trie_loop *loop);
+struct trie_loop *trie_filter_branch(struct word_trie *t, struct trie_loop *loop);
 
 struct word_trie *trie_loop_children(struct word_trie *cell, struct word_trie *host);
 

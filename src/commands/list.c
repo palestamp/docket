@@ -41,10 +41,10 @@ cmd_list(int argc, const char **argv) {
 
             struct trie_loop loop = {0};
             struct trie_loop *loop_ptr = &loop;
-            TRIE_LOOP_INIT(&loop);
+            TRIE_BRANCH_LOOP_INIT(&loop, NULL);
 
             while(1) {
-                loop_ptr = trie_loop_branch(ds->trie, loop_ptr, trie_filter_has_data) ;
+                loop_ptr = trie_loop_branch(ds->trie, loop_ptr) ;
                 if (loop_ptr == NULL) break;
 
                 struct leaf_list *leaf_inner = NULL;

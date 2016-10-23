@@ -195,7 +195,7 @@ loop_stack_sprint_kv(struct trie_loop *loop) {
 
 // XXX Sure that guard_fn works with one-node branch
 static struct trie_loop *
-trie_loopX2(struct word_trie *trie, struct trie_loop *loop, loop_guard guard_fn) {
+trie_loopX2(struct word_trie *trie, struct trie_loop *loop) {
     // this is always root node which basicaly can not store any information
     // therefore we can skip guard_fn on it still it non-informative
     if(TAILQ_EMPTY(&loop->stack)) {
@@ -205,7 +205,7 @@ trie_loopX2(struct word_trie *trie, struct trie_loop *loop, loop_guard guard_fn)
 
         loop->pass = 1;
         TAILQ_INSERT_TAIL(&loop->stack, trie, tries);
-        return trie_loopX2(trie, loop, guard_fn);
+        return trie_loopX2(trie, loop);
     } else {
         // get trie node to process
         struct word_trie *last = TAILQ_LAST(&loop->stack, loop_head);
@@ -220,10 +220,10 @@ trie_loopX2(struct word_trie *trie, struct trie_loop *loop, loop_guard guard_fn)
             loop->depth += 1;
 
             TAILQ_INSERT_TAIL(&loop->stack, newt, tries);
-            if (guard_fn(newt)) {
+            if (loop->guard_fn(newt)) {
                 return loop;
             } else {
-                return trie_loopX2(newt, loop, guard_fn);
+                return trie_loopX2(newt, loop);
             }
         } else {
             // we in leaf node
@@ -239,7 +239,7 @@ trie_loopX2(struct word_trie *trie, struct trie_loop *loop, loop_guard guard_fn)
             loop->edge_offset = sibling_pos + 1;
             loop->depth -= 1;
             // recursing case we already have this nodes
-            return trie_loopX2(last, loop, guard_fn);
+            return trie_loopX2(last, loop);
         }
     }
 };
@@ -247,8 +247,7 @@ trie_loopX2(struct word_trie *trie, struct trie_loop *loop, loop_guard guard_fn)
 
 
 static struct trie_loop *
-trie_loopX3(struct word_trie *trie, struct trie_loop *loop, loop_guard guard_fn,
-        struct path_filter *pf) {
+trie_loopX3(struct word_trie *trie, struct trie_loop *loop) {
     // this is always root node which basicaly can not store any information
     // therefore we can skip guard_fn on it still it non-informative
     if(TAILQ_EMPTY(&loop->stack)) {
@@ -258,7 +257,7 @@ trie_loopX3(struct word_trie *trie, struct trie_loop *loop, loop_guard guard_fn,
 
         loop->pass = 1;
         TAILQ_INSERT_TAIL(&loop->stack, trie, tries);
-        return trie_loopX3(trie, loop, guard_fn, pf);
+        return trie_loopX3(trie, loop);
     } else {
         // get trie node to process
         struct word_trie *last = TAILQ_LAST(&loop->stack, loop_head);
@@ -269,10 +268,10 @@ trie_loopX3(struct word_trie *trie, struct trie_loop *loop, loop_guard guard_fn,
             struct word_trie *newt = *(last->edges + loop->edge_offset);
 
             loop->depth += 1;
-            if (match_filter_chunk(pf, newt->word, loop->depth) == 0) {
+            if (match_filter_chunk(loop->filter, newt->word, loop->depth) == 0) {
                 loop->edge_offset += 1;
                 loop->depth -= 1;
-                return trie_loopX3(last, loop, guard_fn, pf);
+                return trie_loopX3(last, loop);
             }
             loop->edge_offset = 0;
 
@@ -281,10 +280,10 @@ trie_loopX3(struct word_trie *trie, struct trie_loop *loop, loop_guard guard_fn,
             // this caused by 'tilda' nodes where filter can be  shorter than path
             // Strictly saying left part is responsible for filtering on minimum
             // path length and right part for node params
-            if (pf->len - 1 <= loop->depth && guard_fn(newt)) {
+            if (loop->filter->len - 1 <= loop->depth && loop->guard_fn(newt)) {
                 return loop;
             } else {
-                return trie_loopX3(newt, loop, guard_fn, pf);
+                return trie_loopX3(newt, loop);
             }
         } else {
             // we in leaf node
@@ -300,20 +299,23 @@ trie_loopX3(struct word_trie *trie, struct trie_loop *loop, loop_guard guard_fn,
             loop->edge_offset = self_pos_rel_to_parent + 1;
             loop->depth -= 1;
             // recursing cause we already have this nodes
-            return trie_loopX3(last, loop, guard_fn, pf);
+            return trie_loopX3(last, loop);
         }
     }
 }
 
 struct trie_loop *
-trie_loop_branch(struct word_trie *t, struct trie_loop *loop, loop_guard guard_fn) {
-    return trie_loopX2(t, loop, guard_fn);
+trie_loop_branch(struct word_trie *t, struct trie_loop *loop) {
+    return trie_loopX2(t, loop);
 }
 
 struct trie_loop *
-trie_filter_branch(struct word_trie *t, struct trie_loop *loop,
-        loop_guard guard_fn, struct path_filter *pf) {
-    return trie_loopX3(t, loop, guard_fn, pf);
+trie_filter_branch(struct word_trie *t, struct trie_loop *loop) {
+    // XXX TODO maybe put tilda filter as default
+    if (loop->filter == NULL) {
+        return NULL;
+    }
+    return trie_loopX3(t, loop);
 }
 
 struct word_trie *
