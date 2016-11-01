@@ -3,6 +3,7 @@ add_library(libdocket STATIC
     trie.c
     filter.c
     strbuf.c
+    options.c
 )
 
 add_executable(docket
@@ -15,6 +16,8 @@ add_executable(docket
     cfdm.c
     scanner.c
     abspath.c
+    options.c
+    dckerr.c
     commands/add.c
     commands/list.c
     commands/tree.c
