@@ -32,7 +32,6 @@ get_command(const char *name) {
     return get_command("help");
 }
 
-
 /*
  * Interceptor between caller and real command execution
  * Should handle optional option flags
@@ -55,6 +54,8 @@ main(int argc, const char **argv) {
     }
     struct command *cmd = get_command(root_cmd);
     if (cmd) {
+        argv++;
+        argc--;
         if (handle_cmd(cmd, argc, argv) == 0) {
             cmd = get_command("help");
             return handle_cmd(cmd, argc, argv);

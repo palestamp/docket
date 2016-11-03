@@ -6,32 +6,41 @@
 #include "config.h"
 #include "options.h"
 #include "abspath.h"
+#include "report.h"
 
 /*
  * Register new docket file in config
  */
 int
 cmd_add(int argc, const char **argv) {
-    const struct option add_options[] = {
+    char *config_path = NULL;
+    char *name = NULL;
+
+    struct option add_options[] = {
+        {"c", "use-config", {.required = 0, .has_args = 1}, &config_path},
+        {"n", "name",       {.required = 1, .has_args = 1}, &name},
         {0},
     };
 
-    argc--;
-    if (argc < 1) {
-        return 0;
+    char err[1024] = "";
+    int rv = options_populate(err, &argc, &argv, add_options);
+    if (rv != 0) {
+        die_error("%s", err);
     }
-    argv++;
 
-    struct config *c = NULL;
+    if (argc < 1) {
+        die_error("Not enough arguments");
+    }
+
     const char *source_path = real_path(argv[0]);
 
     if(source_path == NULL) {
-        fprintf(stderr, "ERROR: No such file: %s\n", argv[0]);
-        return 0;
+        die_error("No such file: %s", argv[0]);
     }
 
-    if(config_exists()) {
-        c = config_load();
+    struct config *c = NULL;
+    if(config_exists(config_path)) {
+        c = config_load(config_path);
         if(config_has_source(c, DCT_CONFIG_SOURCES_TRIE_PATH, source_path)) {
             config_free(c);
         } else {
@@ -40,11 +49,11 @@ cmd_add(int argc, const char **argv) {
             config_free(c);
         }
     } else {
-        c = config_create();
+        c = config_create(config_path);
         config_add_source(c, DCT_CONFIG_SOURCES_TRIE_PATH, source_path);
         config_sync(c);
         config_free(c);
-
     }
+
     return 1;
 }

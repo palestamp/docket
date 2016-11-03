@@ -26,9 +26,10 @@ options_populate(char *err, int *iargc, const char ***iargv, struct option sopt[
                         // long opt
                         (argv[i][1] == '-' && (strcmp((argv[i] + 2), o->long_name) == 0))
                    ) {
+                    // has args flag
                     if((o->flags.has_args & 1) != 0) {
                         if (argv[i + 1]) {
-                            o->value = (char *)(argv[i + 1]);
+                            *(o->value) = (char *)(argv[i + 1]);
                             i++;
                         } else {
                             sprintf(err, dckerr_s(DCK_OPTION_MUST_HAVE_ARG_FORMAT),

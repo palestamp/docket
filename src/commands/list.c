@@ -16,10 +16,10 @@ cmd_list(int argc, const char **argv) {
     };
 
     struct config *c = NULL;
-    if(!config_exists()) {
+    if(!config_exists(NULL)) {
         return 0;//DCT_NO_CONFIG_FOUND;
     }
-    c = config_load();
+    c = config_load(NULL);
     struct word_trie *root = trie_get_path(c->trie, DCT_CONFIG_SOURCES_TRIE_PATH);
 
     struct word_trie *loop_trie = NULL;

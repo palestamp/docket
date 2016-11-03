@@ -16,25 +16,25 @@ struct config {
 /*
  * Create config file in HOME directory
  */
-int create_config_file(void);
+int create_config_file(const char *cpath);
 
-FILE * config_open(const char *flags);
+FILE * config_open(const char *cpath, const char *flags);
 /*
  * Check if $HOME/.docket exists
  */
-int config_exists(void);
+int config_exists(const char *cpath);
 
 /*
  * Build '$HOME/.docket'
  */
-const char *get_config_path(void);
+const char *get_config_path(const char *cpath);
 
 /*
  * Load configuration file into config struct
  */
-struct config *config_load(void);
+struct config *config_load(const char *cpath);
 
-struct config *config_create(void);
+struct config *config_create(const char *cpath);
 
 /*
  * Create empty config struct

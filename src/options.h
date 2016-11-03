@@ -13,7 +13,7 @@ struct option {
     const char *short_name;
     const char *long_name;
     flags flags;
-    char *value;
+    char **value;
 };
 
 
