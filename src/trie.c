@@ -158,11 +158,11 @@ loop_stack_sprint(struct trie_loop *loop) {
     int len = 0;
     int pos = 0;
     struct word_trie *l = NULL;
-    char *format = "%s";
+    char *delimiter = "";
     TAILQ_FOREACH(l , &loop->stack, tries) {
         if (l->word) {
-            bufcat(&buf, &len, &pos, format, l->word);
-            format= ":%s";
+            bufcat(&buf, &len, &pos, "%s%s", delimiter,  l->word);
+            delimiter = ":";
         }
     }
     return buf;

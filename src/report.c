@@ -20,3 +20,12 @@ die_error(const char *err, ...) {
 	va_end(params);
     exit(128);
 }
+
+void
+die_fatal(const char *err, ...) {
+	va_list params;
+	va_start(params, err);
+	vreportf("fatal: ", err, params);
+	va_end(params);
+    exit(128);
+}
