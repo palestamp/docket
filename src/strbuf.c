@@ -50,3 +50,24 @@ copy_slice(const char *start_ptr, size_t len) {
     buffer[len] = '\0';
     return buffer;
 }
+
+
+
+char *
+_build_path(int dummy, ...) {
+    va_list ch;
+    char *key = NULL;
+
+    char *out = NULL;
+    int pos = 0;
+    int len = 0;
+
+    char *delimiter = "";
+    va_start(ch, dummy);
+    while((key = va_arg(ch, char *)) != NULL) {
+        bufcat(&out, &len, &pos, "%s%s", delimiter, key);
+        delimiter = ":";
+    }
+    va_end(ch);
+    return out;
+}

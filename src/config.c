@@ -125,47 +125,7 @@ config_load(const char *cpath) {
 
 int
 config_add(struct config *c, const char * accessor_string, const char *value) {
-    struct word_trie *t = trie_get_path(c->trie, accessor_string);
-    if(t == NULL) {
-        t = trie_insert_path(c->trie, accessor_string);
-    }
-
-    struct leaf_list *node = malloc(sizeof(struct leaf_list));
-    node->data = (void *)strdup(value);
-    TAILQ_INSERT_TAIL(&t->leafs, node, leaf);
-    return 1;
-}
-
-
-int
-config_add_source(struct config *c, const char * accessor_string, const char *value) {
-    char buf[1024] = "";
-    struct word_trie *t = trie_get_path(c->trie, accessor_string);
-    if(t == NULL) {
-        sprintf(buf, "%s:%d:source", accessor_string, 0);
-        trie_insert_by_path(c->trie, buf, (void *)strdup(value));
-        memset(buf, 0, 1024);
-        sprintf(buf, "%s:%d:name", accessor_string, 0);
-        trie_insert_by_path(c->trie, buf, (void *)strdup(value));
-        return 1;
-    }
-
-    int max = 0;
-    int i = 0;
-    struct word_trie *loop_trie = NULL;
-    while((loop_trie = trie_loop_children(loop_trie, t))) {
-        if(max < (i = atoi(loop_trie->word))) {
-            max = i;
-        }
-    }
-
-    memset(buf, 0, 1024);
-    sprintf(buf, "%s:%d:source", accessor_string, (i + 1));
-    trie_insert_by_path(c->trie, buf, (void *)strdup(value));
-    memset(buf, 0, 1024);
-    sprintf(buf, "%s:%d:name", accessor_string, (i + 1));
-    trie_insert_by_path(c->trie, buf, (void *)strdup(value));
-
+    trie_insert_by_path(c->trie, accessor_string, (void *)strdup(value));
     return 1;
 }
 
@@ -182,15 +142,15 @@ cmp_str(const void *a, const void *b) {
 }
 
 
-int
-config_has(struct config *c, const char * accessor_string, const char *value) {
-    struct word_trie *t = NULL;
-    if((t = trie_get_path(c->trie, accessor_string)) && !TAILQ_EMPTY(&t->leafs)) {
-        struct leaf_list *lfls = NULL;
-        TAILQ_FOREACH(lfls, &t->leafs, leaf) {
-            if(!cmp_str((void *)value, lfls->data)) {
-                return 1;
-            }
+int config_has(struct config *c, const char *filter, const char *value) {
+    struct trie_loop loop = {0};
+    struct trie_loop *loop_ptr = &loop;
+    struct path_filter *pf = compile_filter_from_s(filter);
+    TRIE_BRANCH_LOOP_INIT(&loop, pf);
+    while((loop_ptr = trie_filter_branch(c->trie, loop_ptr))) {
+        struct word_trie *t = LOOP_ONSTACK_TRIE(loop_ptr);
+        if (trie_has_data(t, cmp_str, (void *)value)) {
+            return 1;
         }
     }
     return 0;

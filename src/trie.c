@@ -386,4 +386,14 @@ trie_filter_has_data(const struct word_trie *trie) {
     }
 }
 
+int
+trie_has_data(struct word_trie *trie, cmpfn fn, void *value) {
+    struct leaf_list *lfls = NULL;
+    TAILQ_FOREACH(lfls, &trie->leafs, leaf) {
+        if(!fn(value, lfls->data)) {
+            return 1;
+        }
+    }
+    return 0;
+}
 

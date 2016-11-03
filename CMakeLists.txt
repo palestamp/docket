@@ -1,7 +1,7 @@
 cmake_minimum_required (VERSION 2.6)
 
 set(CMAKE_C_COMPILER gcc)
-SET(CMAKE_C_FLAGS "-Wall -Wextra")
+SET(CMAKE_C_FLAGS "-Wall -Wextra -Wno-unused-function -Wno-unused-parameter")
 
 project ("docket" C)
 

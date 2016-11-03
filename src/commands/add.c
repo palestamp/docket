@@ -7,6 +7,7 @@
 #include "options.h"
 #include "abspath.h"
 #include "report.h"
+#include "strbuf.h"
 
 /*
  * Register new docket file in config
@@ -33,24 +34,57 @@ cmd_add(int argc, const char **argv) {
     }
 
     const char *source_path = real_path(argv[0]);
-
     if(source_path == NULL) {
         die_error("No such file: %s", argv[0]);
     }
 
     struct config *c = NULL;
+
+    char *source_accessor = build_path(DCT_CONFIG_SOURCES_TRIE_PATH, "*", "source");
+    char *name_accessor = build_path(DCT_CONFIG_SOURCES_TRIE_PATH, "*", "name");
+
     if(config_exists(config_path)) {
         c = config_load(config_path);
-        if(config_has_source(c, DCT_CONFIG_SOURCES_TRIE_PATH, source_path)) {
+        if (config_has(c, name_accessor, name)) {
             config_free(c);
+            die_error("Duplicate name");
+        } else if (config_has(c, source_accessor, source_path)) {
+            config_free(c);
+            die_error("Duplicate source");
         } else {
-            config_add_source(c, DCT_CONFIG_SOURCES_TRIE_PATH, source_path);
+            int max = 0;
+            int found = 0;
+            char max_str[24] = "";
+
+            struct word_trie *root = trie_get_path(c->trie, DCT_CONFIG_SOURCES_TRIE_PATH);
+            struct word_trie *swap_trie  = NULL;
+
+            while((swap_trie = trie_loop_children(swap_trie, root))) {
+                if(max < (found = atoi(swap_trie->word))) {
+                    max = found;
+                }
+            }
+
+            sprintf(max_str, "%d", max + 1);
+
+            char *new_source_accessor = build_path(DCT_CONFIG_SOURCES_TRIE_PATH, max_str, "source");
+            char *new_name_accessor = build_path(DCT_CONFIG_SOURCES_TRIE_PATH, max_str, "name");
+
+            config_add(c, new_name_accessor, name);
+            config_add(c, new_source_accessor, source_path);
+
             config_sync(c);
             config_free(c);
         }
     } else {
         c = config_create(config_path);
-        config_add_source(c, DCT_CONFIG_SOURCES_TRIE_PATH, source_path);
+
+        char *new_source_accessor = build_path(DCT_CONFIG_SOURCES_TRIE_PATH, "0", "source");
+        char *new_name_accessor = build_path(DCT_CONFIG_SOURCES_TRIE_PATH, "0", "name");
+
+        config_add(c, new_name_accessor, name);
+        config_add(c, new_source_accessor, source_path);
+
         config_sync(c);
         config_free(c);
     }

@@ -146,6 +146,13 @@ timer.{timer_id}.stack=<true,false> - look at <{rel: localex:parts:todo:timers:@
 [parts:todo:timers:storage]
 @@ Chuncks
 
+[parts:todo:shelve]
+@@ Docket subtree copy
+The idea is - you can specify path (or another filter) to quickly copy docket subtree
+For example you want to share all nodes that have information about golang, with this option
+it can be reached by next command
+
+docket tree prune --filter '*.programming.golang.~ || tag:golang' > golang.docket
 
 [tech:parts:body]
 @@ Parse on request

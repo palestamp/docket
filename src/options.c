@@ -51,7 +51,7 @@ options_populate(char *err, int *iargc, const char ***iargv, struct option sopt[
     while(sopt[sopt_c_idx].short_name || sopt[sopt_c_idx].long_name) {
         struct option *o = &(sopt[sopt_c_idx]);
 
-        if((o->flags.required & 1) != 0 && o->value == NULL) {
+        if((o->flags.required & 1) != 0 && *(o->value) == NULL) {
             sprintf(err, dckerr_s(DCK_OPTION_REQUIRED_FORMAT),
                     (o->long_name ? o->long_name : o->short_name));
             return 1;

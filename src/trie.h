@@ -55,6 +55,9 @@ struct word_trie * trie_add(struct word_trie *t, const char *word);
 struct word_trie * trie_insert_path(struct word_trie *, const char * path);
 void trie_insert_by_path(struct word_trie *trie, const char *path, void *data);
 
+// check for requested value iin trie's leaf array
+int trie_has_data(struct word_trie *trie, cmpfn fn, void *value);
+
 void trie_sort(struct word_trie *t, cmpfn comporator);
 void trie_print(struct word_trie *t);
 
@@ -76,6 +79,8 @@ void trie_print(struct word_trie *t);
 #define TRIE_DATA_LOOP_INIT(_var, _filter) do {                   \
     TRIE_LOOP_INIT((_var), trie_filter_has_data, (_filter));  \
 } while(0)
+
+#define LOOP_ONSTACK_TRIE(_loop_ptr) TAILQ_LAST(&(_loop_ptr)->stack, loop_head)
 
 struct trie_loop * trie_loop_branch(struct word_trie *t, struct trie_loop *loop);
 struct trie_loop *trie_filter_branch(struct word_trie *t, struct trie_loop *loop);
