@@ -33,4 +33,6 @@ struct docket_shelve *docket_shelve_load_file(const char *source_name);
 
 char * docket_fix_title(const char *title);
 size_t docket_get_body_len(struct docket *d);
+int cmp_str(const void *a, const void *b);
+
 #endif

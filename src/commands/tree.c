@@ -8,6 +8,7 @@
 #include "docket.h"
 #include "options.h"
 #include "trie.h"
+#include "report.h"
 
 
 
@@ -141,34 +142,63 @@ print_docket_node(const struct word_trie *trie_host, struct tree_padding *paddin
  */
 int
 cmd_tree(int argc, const char **argv) {
-    const struct option tree_options[] = {
+    char *config_path = NULL;
+    char *name = NULL;
+
+    struct option tree_options[] = {
+        {"c", "use-config", {.required = 0, .has_args = 1}, &config_path},
+        {"n", "name",       {.required = 0, .has_args = 1}, &name},
         {0},
     };
 
-    struct config *c = NULL;
-    if(!config_exists(NULL)) {
-        return 0;//DCT_NO_CONFIG_FOUND;
+    char err[1024] = "";
+    int rv = options_populate(err, &argc, &argv, tree_options);
+    if (rv != 0) {
+        die_error("%s", err);
     }
-    c = config_load(NULL);
-    struct word_trie *root = trie_get_path(c->trie, DCT_CONFIG_SOURCES_TRIE_PATH);
 
+    struct config *c = NULL;
+    if(!config_exists(config_path)) {
+        die_error("No configuration found");
+    }
+
+    struct word_trie *host = trie_new();
+
+    c = config_load(config_path);
+
+    struct word_trie *root = trie_get_path(c->trie, DCT_CONFIG_SOURCES_TRIE_PATH);
     struct word_trie *loop_trie = NULL;
     while((loop_trie = trie_loop_children(loop_trie, root))) {
-        struct word_trie *trie = trie_get_path(loop_trie, "source");
+        struct word_trie *source_node = trie_get_path(loop_trie, "source");
+        struct word_trie *name_node = trie_get_path(loop_trie, "name");
 
-        if (trie == NULL) {
-            return 0;//DCT_NO_SOURCES_FOUND;
-        }
-
-        struct leaf_list *leaf = NULL;
-        TAILQ_FOREACH(leaf, &trie->leafs, leaf) {
-            if(access((const char *)leaf->data, R_OK) != 0) {
-                return 0; // DCT_NO_ACCESS
+        if (source_node == NULL || name_node == NULL) {
+            if (source_node != name_node) {
+                die_fatal("Corrupted configuration data");
             }
-            struct tree_padding padding = {.offsets = {0}, .buf = "", .offcursor = 1};
-            struct docket_shelve *ds = docket_shelve_load_file((const char *)leaf->data);
-            print_docket_node(ds->trie, &padding);
+            die_error("No source files found");
         }
+
+        // filter sources by alias name
+        if (name && (trie_has_data(name_node, cmp_str, name) == 0)) {
+            continue;
+        }
+
+        const char *source = TAILQ_FIRST(&source_node->leafs)->data;
+        const char *name = TAILQ_FIRST(&name_node->leafs)->data;
+
+        if(access(source, R_OK) != 0) {
+            die_error("No access to '%s'", (const char *)source);
+        }
+
+        struct docket_shelve *ds = docket_shelve_load_file(source);
+        printf("Source found (%s): %s\n", name, ds->source_path);
+
+        ds->trie->word = strdup(name);
+        trie_append_child(host, ds->trie);
     }
+
+    struct tree_padding padding = {.offsets = {0}, .buf = "", .offcursor = 1};
+    print_docket_node(host, &padding);
     return 1;
 }

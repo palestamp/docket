@@ -9,6 +9,7 @@
 #include "config.h"
 #include "strbuf.h"
 #include "scanner.h"
+#include "docket.h"
 
 
 #ifndef DOCKET_CONFIG_NAME
@@ -130,16 +131,6 @@ config_add(struct config *c, const char * accessor_string, const char *value) {
 }
 
 
-static int
-cmp_str(const void *a, const void *b) {
-    if(!(a && b)) {
-        return -1;
-    }
-
-    const char *ad = (const char *)a;
-    const char *bd = (const char *)b;
-    return strcmp(ad, bd);
-}
 
 
 int config_has(struct config *c, const char *filter, const char *value) {

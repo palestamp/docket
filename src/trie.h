@@ -53,6 +53,7 @@ struct word_trie * trie_get_path(struct word_trie *, const char * path);
 
 struct word_trie * trie_add(struct word_trie *t, const char *word);
 struct word_trie * trie_insert_path(struct word_trie *, const char * path);
+struct word_trie * trie_append_child(struct word_trie *host, struct word_trie *child);
 void trie_insert_by_path(struct word_trie *trie, const char *path, void *data);
 
 // check for requested value iin trie's leaf array

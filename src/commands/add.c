@@ -4,6 +4,7 @@
 #include <sys/queue.h>
 
 #include "config.h"
+#include "docket.h"
 #include "options.h"
 #include "abspath.h"
 #include "report.h"

@@ -104,3 +104,14 @@ docket_get_body_len(struct docket *d) {
     }
     return 0;
 }
+
+int
+cmp_str(const void *a, const void *b) {
+    if(!(a && b)) {
+        return -1;
+    }
+
+    const char *ad = (const char *)a;
+    const char *bd = (const char *)b;
+    return strcmp(ad, bd);
+}

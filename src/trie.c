@@ -69,6 +69,20 @@ trie_add(struct word_trie *t, const char *word) {
     return n;
 }
 
+struct word_trie *
+trie_append_child(struct word_trie *host, struct word_trie *child) {
+    struct word_trie *n = trie_get(host, child->word);
+    if (n == NULL) {
+        trie_grow(host);
+        // save child's position
+        child->pos = host->len;
+
+        host->edges[child->pos] = child;
+        host->len++;
+    }
+    return child;
+}
+
 #define MAX_PATH_CHUNK_LEN 64
 struct word_trie *
 trie_over_path_apply(trie_path_iter_cb cb, struct word_trie *t, const char *path) {
