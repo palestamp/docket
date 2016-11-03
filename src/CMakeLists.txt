@@ -18,6 +18,7 @@ add_executable(docket
     abspath.c
     options.c
     dckerr.c
+    report.c
     commands/add.c
     commands/list.c
     commands/tree.c
