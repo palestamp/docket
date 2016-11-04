@@ -8,7 +8,7 @@ Docket specification
 @@ Order
 - architecture with exposed API
 + file registering <{link:parts.registry}>
-+- file-level namespace
++ file-level namespace
 + top-level parser
 + trie building
 + tree representation
@@ -24,7 +24,6 @@ Each docket document always stored under some path. Paths are the
 [parts:paths]
 @@ Details
 *(?) There is no limitation for path length.
-* Path should starts with '[' and ends with ']'.
 * Each path is delimited with ':' sign.
 * Each path segment can contain [-_A-Za-z0-9] characters.
 
@@ -33,6 +32,10 @@ Each docket document always stored under some path. Paths are the
 Ordinary, configuration file is in $HOME. This option should give even
 more flexibility to construct namespaces. Also it is good for testing purposes.
 
+[parts:todo:urgent]
+@@ Config to kv-store rewrite
+There are much functionality under config.h which should be common. For example
+timers will reuse it. So we need to name this functionality with more common name
 
 [parts:todo:config]
 @@ Namespaces
@@ -58,6 +61,7 @@ Errors:
 
 Flag:
     namespace=<name>
+
 
 [parts:done:paths:globbing]
 @@ Overview
@@ -153,6 +157,8 @@ For example you want to share all nodes that have information about golang, with
 it can be reached by next command
 
 docket tree prune --filter '*.programming.golang.~ || tag:golang' > golang.docket
+
+
 
 [tech:parts:body]
 @@ Parse on request

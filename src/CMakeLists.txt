@@ -19,6 +19,7 @@ add_executable(docket
     options.c
     dckerr.c
     report.c
+    kv.c
     commands/add.c
     commands/list.c
     commands/tree.c

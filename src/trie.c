@@ -292,7 +292,7 @@ trie_loopX3(struct word_trie *trie, struct trie_loop *loop) {
             TAILQ_INSERT_TAIL(&loop->stack, newt, tries);
             // check that filter len is lesser or equal to path len
             // this caused by 'tilda' nodes where filter can be  shorter than path
-            // Strictly saying left part is responsible for filtering on minimum
+            // Strictly saying, left part is responsible for filtering on minimum
             // path length and right part for node params
             if (loop->filter->len - 1 <= loop->depth && loop->guard_fn(newt)) {
                 return loop;

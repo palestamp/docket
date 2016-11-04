@@ -3,6 +3,7 @@
 #include <string.h>
 #include <stdlib.h>
 
+#include "kv.h"
 #include "config.h"
 #include "docket.h"
 #include "options.h"
@@ -16,12 +17,13 @@ cmd_list(int argc, const char **argv) {
         {0},
     };
 
-    struct config *c = NULL;
-    if(!config_exists(NULL)) {
+    const char * config_path = get_config_path(NULL);
+    if(!kv_exists(config_path)) {
         return 0;//DCT_NO_CONFIG_FOUND;
     }
-    c = config_load(NULL);
-    struct word_trie *source_root = trie_get_path(c->trie, DCT_CONFIG_SOURCES_TRIE_PATH);
+
+    struct kvsrc *kv = kv_load(config_path);
+    struct word_trie *source_root = trie_get_path(kv->trie, DCT_CONFIG_SOURCES_TRIE_PATH);
 
     struct word_trie *host = trie_new();
 
@@ -53,7 +55,7 @@ cmd_list(int argc, const char **argv) {
 
     struct trie_loop loop = {0};
     struct trie_loop *loop_ptr = &loop;
-    TRIE_BRANCH_LOOP_INIT(&loop, NULL);
+    TRIE_DATA_LOOP_INIT(&loop, NULL);
 
     while((loop_ptr = trie_loop_branch(host, loop_ptr))) {
         struct leaf_list *leaf_inner = NULL;
