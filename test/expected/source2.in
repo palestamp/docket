@@ -1,0 +1,14 @@
+[aaa]
+@@ a
+
+[aaa:bbb]
+@@ ab
+
+[aaa:bbb:ccc]
+@@ abc
+
+[aaa:bbb:ccc:ddd]
+@@ abcd
+
+[aaa:aaa]
+@@ aa

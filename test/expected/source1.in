@@ -1,0 +1,166 @@
+# HEAD
+Docket specification
+# END
+
+
+
+[development]
+@@ Order
+- architecture with exposed API
++ file registering <{link:parts.registry}>
++ file-level namespace
++ top-level parser
++ trie building
++ tree representation
++ inplace sorting
+
+
+[parts:paths]
+@@ Overview
+Each docket document always stored under some path. Paths are the
+'first member citizens' here. Its a most general type of data hierarhy.
+
+
+[parts:paths]
+@@ Details
+*(?) There is no limitation for path length.
+* Each path is delimited with ':' sign.
+* Each path segment can contain [-_A-Za-z0-9] characters.
+
+[parts:todo:config]
+@@ use-config flag
+Ordinary, configuration file is in $HOME. This option should give even
+more flexibility to construct namespaces. Also it is good for testing purposes.
+
+[parts:todo:urgent]
+@@ Config to kv-store rewrite
+There are much functionality under config.h which should be common. For example
+timers will reuse it. So we need to name this functionality with more common name
+
+[parts:todo:config]
+@@ Namespaces
+Namespace is source file alias
+In existing structure there are no namespaces (0.0.1 version) so there are no
+simple way for user to restrict one or several files to process
+
+Trie patching:
+    Basically namespaces will become source host nodes when talking about tries.
+
+Variants:
+    Bconf-like: (done)
+        docket:settings:sources:0:path=/Users/stas/self/docket/local.docket
+        docket:settings:sources:0:name=dev
+
+    Flat:
+        docket:settings:sources:dev=/Users/stas/self/docket/local.docket
+
+Errors:
+    duplicate source: "Source file already exists under namespace 'blabla'"
+    duplicate name  : "Namespace already owned by source '/Users/blabla/bla.docket'"
+    config error    : "Config error in '/Users/stas/.docket'"
+
+Flag:
+    namespace=<name>
+
+
+[parts:done:paths:globbing]
+@@ Overview
+Globbing is reduced to '*' and '~' signs.
+First can match one path section entirely.
+Second match anything until the end of path.
+The idea here that if you need more than '*' you need to organize your data better.
+
+So instead of writing '[a.2016ṁay.something]' you should prefer '[a.2016.may.something]'
+
+[parts:todo:layouts]
+@@ Overview
+Layouts are intendet to simplify frequent queries
+Example definition:
+    layout := 'layout' <name> { <search-expression> }
+
+Special meta section in the top of .owl file
+    layout:mine {
+      include path programming:langs.c
+      include path programming:*:algorithm
+      include path schibsted:work:*~
+      exclude path programming:list:algorithm
+      exclude tag  done, not_interesting, private & life
+    }
+
+
+[parts:todo:timers]
+@@ Overview
+
+1. 'docket timer new work' - register a new timer
+## timer.0.name=work
+## timer.0.behaviour=manual - means that explicit 'stop' required
+
+2. 'docket timer start work' - start 'work' timer
+## timer.commit.0.0.0.start=1476810972
+
+3. 'docket timer stop work'
+## timer.commit.1.0.0.stop=1476811094
+
+4.1 'docket timer setup work interrupt:sleep'
+#> Error: no such timer 'sleep'
+
+4.2 'docket timer new sleep --stacked'
+## timer.1.name=sleep
+## timer.1.behaviour=stacked
+
+4.3 'docket timer setup work interrupt:sleep'
+## timer.0.tags.interrupt=sleep
+
+5.1 'docket timer start work'
+## timer.commit.2.0.1.start=1476816953
+
+5.2 'docket timer start sleep'
+## timer.commit.3.0.1.stop=1476816988
+## timer.commit.4.1.0.start=1476816988
+
+5.3 'docket timer pop'
+#> Pop: sleep.
+#> Continue: work.
+## timer.commit.5.1.1.stop=1476817107
+## timer.commit.6.0.2.start=1476817107
+
+
+[parts:todo:timers]
+@@ Timer behaviours
+* manual - should be turned on/off manually by start/stop commands
+* hosted - can be turned on only if host already turned on, should be automatically
+turned off when host is turned off
+* dependent - should be automatically turned on and off with eventer timer/timers
+
+
+[parts:todo:timers]
+@@ Stack support
+If timer has stack support that means it can be layed on stack of timers which is internal
+setting for hosted timers: when hosted timer starts it is pushed onto host timer, then it
+can be poped/stopped manually, but if host timer exits with hosted timers on it - every
+timer is poped out from it in push reverse order.
+
+[parts:todo:timers:storage]
+@@ Meta
+timer.{timer_id}.name=<timer name, defined bu user>
+timer.{timer_id}.note=<some description>
+timer.{timer_id}.behaviour.{enumeration_id}=<manual,hosted,dependent>
+timer.{timer_id}.stack=<true,false> - look at <{rel: localex:parts:todo:timers:@@StackSupport}>
+
+[parts:todo:timers:storage]
+@@ Chuncks
+
+[parts:todo:shelve]
+@@ Docket subtree copy
+The idea is - you can specify path (or another filter) to quickly copy docket subtree
+For example you want to share all nodes that have information about golang, with this option
+it can be reached by next command
+
+docket tree prune --filter '*.programming.golang.~ || tag:golang' > golang.docket
+
+
+
+[tech:parts:body]
+@@ Parse on request
+Parse body for entities only if needed
+

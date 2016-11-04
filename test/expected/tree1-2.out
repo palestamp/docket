@@ -1,0 +1,58 @@
+localex
++------development
+|      * @@ Order (175)
+|      
++------parts
+|      +----paths
+|      |    * @@ Overview (140)
+|      |    * @@ Details (144)
+|      |    
+|      +----todo
+|      |    +---config
+|      |    |   * @@ use-config flag (152)
+|      |    |   * @@ Namespaces (769)
+|      |    |   
+|      |    +---urgent
+|      |    |   * @@ Config to kv-store rewrite (163)
+|      |    |   
+|      |    +---layouts
+|      |    |   * @@ Overview (418)
+|      |    |   
+|      |    +---timers
+|      |    |   * @@ Overview (860)
+|      |    |   * @@ Timer behaviours (270)
+|      |    |   * @@ Stack support (320)
+|      |    |   
+|      |    |   +-----storage
+|      |    |         * @@ Meta (260)
+|      |    |         * @@ Chuncks (1)
+|      |    |         
+|      |    +---shelve
+|      |        * @@ Docket subtree copy (299)
+|      |        
+|      +----done
+|           +---paths
+|               +----globbing
+|                    * @@ Overview (307)
+|                    
++------tech
+       +---parts
+           +----body
+                * @@ Parse on request (40)
+                
+test
++---aaa
+    * @@ a (1)
+    
+    +--bbb
+    |  * @@ ab (1)
+    |  
+    |  +--ccc
+    |     * @@ abc (1)
+    |     
+    |     +--ddd
+    |        * @@ abcd (1)
+    |        
+    +--aaa
+       * @@ aa (0)
+       
