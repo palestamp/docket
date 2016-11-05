@@ -56,7 +56,7 @@ cmd_tree(int argc, const char **argv) {
 
     struct word_trie *host = trie_new();
 
-    struct kvsrc *kv = kv_load(config_path);
+    struct kvsrc *kv = kv_load(config_path, kv_parse);
 
     struct word_trie *root = kv_get(kv, DCT_CONFIG_SOURCES_TRIE_PATH);
     struct word_trie *loop_trie = NULL;
@@ -83,10 +83,10 @@ cmd_tree(int argc, const char **argv) {
             die_error("No access to '%s'", (const char *)source);
         }
 
-        struct docket_shelve *ds = docket_shelve_load_file(source);
+        struct kvsrc *kv = kv_load(source, docket_parse);
 
-        ds->trie->word = strdup(name);
-        trie_append_child(host, ds->trie);
+        kv->trie->word = strdup(name);
+        trie_append_child(host, kv->trie);
     }
 
     struct tree_padding padding = {.offsets = {0}, .buf = "", .offcursor = 1};

@@ -2,7 +2,9 @@
 #define DOCKET_KV_H
 
 #include <stdio.h>
+
 #include "trie.h"
+#include <scanner.h>
 
 struct kvsrc {
     struct word_trie *trie;
@@ -10,7 +12,8 @@ struct kvsrc {
 };
 
 int kv_exists(const char *cpath);
-struct kvsrc *kv_load(const char *kvsrc_path);
+void kv_parse(struct kvsrc *kv, struct scanner *s);
+struct kvsrc *kv_load(const char *kvsrc_path, void (*parse)(struct kvsrc *kv, struct scanner *s));
 void kv_add(struct kvsrc *kv, const char * accessor_string, const char *value);
 struct word_trie *kv_get(struct kvsrc *kv, const char * accessor_string);
 int kv_has(struct kvsrc *kv, const char *filter, const char *value);

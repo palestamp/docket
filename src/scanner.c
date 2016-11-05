@@ -98,3 +98,4 @@ scanner_next_line(struct scanner *s) {
         SCANNER_ADVANCE(s);
     }
 }
+

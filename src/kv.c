@@ -24,7 +24,7 @@ kv_exists(const char *file_path) {
 }
 
 struct kvsrc *
-kv_load(const char *file_path) {
+kv_load(const char *file_path, void(*parse)(struct kvsrc *kv, struct scanner *s)) {
     struct kvsrc *kv = malloc(sizeof(struct kvsrc));
     kv->trie = trie_new();
     kv->origin = fopen(file_path, "r+");
@@ -36,31 +36,36 @@ kv_load(const char *file_path) {
 
     scanner_own_cfdm(s, m);
 
-    char *cursor = (char *)SCANNER_CURSOR(s);
-
-    while(*cursor) {
-        if((s->pos == 0) || (*(cursor - 1) == '\n')) {
-            /* if line starts with any non-alphabetic character - skip this line */
-            if(!isalpha((int)(*cursor))) {
-                continue;
-            }
-
-            char *ptr_delim = strchr(cursor, '=');
-            char *alloced_path = copy_slice(cursor, ptr_delim - cursor);
-            cursor = ptr_delim + 1;
-
-            ptr_delim = strchr(cursor, '\n');
-            char *alloced_data = copy_slice(cursor, ptr_delim - cursor);
-
-            kv_add(kv, alloced_path, (void *)alloced_data);
-            free(alloced_path);
-        }
-        SCANNER_ADVANCE(s);
-        cursor++;
+    while(!SCANNER_END(s)) {
+        parse(kv, s);
     }
 
     return kv;
 }
+
+
+void
+kv_parse(struct kvsrc *kv, struct scanner *s) {
+    char *cursor = SCANNER_CURSOR(s);
+    if((s->pos == 0) || (*(cursor - 1) == '\n')) {
+        /* if line starts with any non-alphabetic character - skip this line */
+        if(!isalpha((int)(*cursor))) {
+            return;
+        }
+
+        char *ptr_delim = strchr(cursor, '=');
+        char *alloced_path = copy_slice(cursor, ptr_delim - cursor);
+        cursor = ptr_delim + 1;
+
+        ptr_delim = strchr(cursor, '\n');
+        char *alloced_data = copy_slice(cursor, ptr_delim - cursor);
+
+        kv_add(kv, alloced_path, (void *)alloced_data);
+        free(alloced_path);
+    }
+    SCANNER_ADVANCE(s);
+}
+
 
 void
 kv_add(struct kvsrc *kv, const char * accessor_string, const char *value) {

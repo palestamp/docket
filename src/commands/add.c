@@ -11,6 +11,7 @@
 #include "report.h"
 #include "strbuf.h"
 
+
 /*
  * Register new docket file in config
  */
@@ -47,7 +48,7 @@ cmd_add(int argc, const char **argv) {
 
     config_path = (char *)get_config_path(config_path);
     if(kv_exists(config_path)) {
-        kv = kv_load(config_path);
+        kv = kv_load(config_path, kv_parse);
         if (kv_has(kv, name_accessor, name)) {
             die_error("Duplicate name");
         } else if (kv_has(kv, source_accessor, source_path)) {

@@ -22,7 +22,7 @@ cmd_list(int argc, const char **argv) {
         return 0;//DCT_NO_CONFIG_FOUND;
     }
 
-    struct kvsrc *kv = kv_load(config_path);
+    struct kvsrc *kv = kv_load(config_path, kv_parse);
     struct word_trie *source_root = trie_get_path(kv->trie, DCT_CONFIG_SOURCES_TRIE_PATH);
 
     struct word_trie *host = trie_new();
@@ -46,11 +46,10 @@ cmd_list(int argc, const char **argv) {
             return 0; // DCT_NO_ACCESS
         }
 
-        struct docket_shelve *ds = docket_shelve_load_file(source);
-        printf("Source found (%s): %s\n", name, ds->source_path);
+        struct kvsrc *kv = kv_load(source, docket_parse);
 
-        ds->trie->word = strdup(name);
-        trie_append_child(host, ds->trie);
+        kv->trie->word = strdup(name);
+        trie_append_child(host, kv->trie);
     }
 
     struct trie_loop loop = {0};
@@ -64,7 +63,7 @@ cmd_list(int argc, const char **argv) {
         TAILQ_FOREACH(leaf_inner, &leafed_trie->leafs, leaf) {
             struct docket *dnode = ((struct docket *)leaf_inner->data);
             char *title = docket_fix_title(dnode->title);
-            fprintf(stdout, "%s %s\n", loop_stack_sprint(loop_ptr), docket_fix_title(dnode->title));
+            fprintf(stdout, "%s %s\n", loop_stack_sprint(loop_ptr), title);
             free(title);
         }
     }
