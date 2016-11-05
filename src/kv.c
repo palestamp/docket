@@ -52,7 +52,7 @@ kv_load(const char *file_path) {
             ptr_delim = strchr(cursor, '\n');
             char *alloced_data = copy_slice(cursor, ptr_delim - cursor);
 
-            trie_insert_by_path(kv->trie, alloced_path, (void *)alloced_data);
+            kv_add(kv, alloced_path, (void *)alloced_data);
             free(alloced_path);
         }
         SCANNER_ADVANCE(s);
@@ -78,9 +78,10 @@ kv_has(struct kvsrc *kv, const char *filter, const char *value) {
     struct trie_loop *loop_ptr = &loop;
     struct path_filter *pf = compile_filter_from_s(filter);
     TRIE_BRANCH_LOOP_INIT(&loop, pf);
+
     while((loop_ptr = trie_filter_branch(kv->trie, loop_ptr))) {
         struct word_trie *trie = LOOP_ONSTACK_TRIE(loop_ptr);
-        if (trie_has_data(trie, cmp_str, (void *)value)) {
+        if (trie_has_value(trie, cmp_str, (void *)value)) {
             return 1;
         }
     }
@@ -89,11 +90,13 @@ kv_has(struct kvsrc *kv, const char *filter, const char *value) {
 
 int
 kv_flush(struct kvsrc *kv, char **buf) {
-    struct trie_loop loop = {0};
-    struct trie_loop *loop_ptr = &loop;
     int len = 0;
     int pos = 0;
+
+    struct trie_loop loop = {0};
+    struct trie_loop *loop_ptr = &loop;
     TRIE_BRANCH_LOOP_INIT(&loop, NULL);
+
     while((loop_ptr = trie_loop_branch(kv->trie, loop_ptr))) {
         bufcat(buf,  &len, &pos, "%s", loop_stack_sprint_kv(loop_ptr));
     }
@@ -106,5 +109,6 @@ kv_sync(struct kvsrc *kv) {
     kv_flush(kv, &buf);
     fwrite(buf, 1, strlen(buf), kv->origin);
     free(buf);
+
     return 1;
 }

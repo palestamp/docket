@@ -1,12 +1,31 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include "strbuf.h"
+
 #include "trie.h"
+#include "strbuf.h"
 
 static void trie_printX(struct word_trie *t, int level);
 
 struct word_trie *
+trie_new(void) {
+    struct word_trie *n = NULL;
+    n = malloc(sizeof(struct word_trie));
+    n->len = 0;
+    n->cap = 0;
+    n->pos = 0;
+    n->edges = NULL;
+    n->word = NULL;
+    TAILQ_INIT(&n->leafs);
+    return n;
+}
+
+
+/*
+ ********************** Inner trie operations **************************************
+ */
+
+static struct word_trie *
 trie_get(struct word_trie *t, const char *word) {
     if (t == NULL) {
         return NULL;
@@ -23,37 +42,27 @@ trie_get(struct word_trie *t, const char *word) {
 }
 
 
-void
+static void
 trie_grow(struct word_trie *t) {
     // last pointer should be NULL
     if (t->cap <= t->len + 1) {
+        // 1.125 growth rate (python implementation)
+        int newalloc = (t->cap >> 3) + (t->cap < 9 ? 3 : 6);
         struct word_trie **temp = NULL;
-        temp = realloc(t->edges, sizeof(struct word_trie *) * (t->cap + 10));
+        temp = realloc(t->edges, sizeof(struct word_trie *) * (t->cap + newalloc));
+
         int i;
-        for(i = t->cap ; i < t->cap + 10; i++) {
+        for(i = t->cap ; i < t->cap + newalloc; i++) {
             *(temp + i) = NULL;
         }
-        t->cap += 10;
-        (t->edges) = temp;
+
+        t->cap += newalloc;
+        t->edges = temp;
     }
 }
 
 
-struct word_trie *
-trie_new(void) {
-    struct word_trie *n = NULL;
-    n = malloc(sizeof(struct word_trie));
-    n->len = 0;
-    n->cap = 0;
-    n->pos = 0;
-    n->edges = NULL;
-    n->word = NULL;
-    TAILQ_INIT(&n->leafs);
-    return n;
-}
-
-
-struct word_trie *
+static struct word_trie *
 trie_add(struct word_trie *t, const char *word) {
     struct word_trie *n = trie_get(t, word);
     if (n == NULL) {
@@ -69,21 +78,31 @@ trie_add(struct word_trie *t, const char *word) {
     return n;
 }
 
+
+/*
+ ************************ Interface functions **************************************
+ */
+
 struct word_trie *
 trie_append_child(struct word_trie *host, struct word_trie *child) {
     struct word_trie *n = trie_get(host, child->word);
     if (n == NULL) {
         trie_grow(host);
+
         // save child's position
         child->pos = host->len;
-
         host->edges[child->pos] = child;
         host->len++;
     }
     return child;
 }
 
+
+#ifndef MAX_PATH_CHUNK_LEN
 #define MAX_PATH_CHUNK_LEN 64
+#endif
+
+
 struct word_trie *
 trie_over_path_apply(trie_path_iter_cb cb, struct word_trie *t, const char *path) {
     struct word_trie *trie = t;
@@ -137,12 +156,27 @@ trie_get_path(struct word_trie *t, const char *path) {
 }
 
 
+int
+trie_has_value(struct word_trie *trie, cmpfn cmpf, void *value) {
+    struct leaf_list *lfls = NULL;
+    TAILQ_FOREACH(lfls, &trie->leafs, leaf) {
+        if(!cmpf(value, lfls->data)) {
+            return 1;
+        }
+    }
+    return 0;
+}
+
+
+/*
+ ********************** Sorting ****************************************************
+ */
 void
-trie_sort(struct word_trie *t, int(*cmpfn)(const void *, const void *)) {
-    qsort((void *)(t->edges), t->len, sizeof(struct word_trie *), cmpfn);
+trie_sort(struct word_trie *t, cmpfn cmpf) {
+    qsort((void *)(t->edges), t->len, sizeof(struct word_trie *), cmpf);
     int i;
     for(i = 0; i < t->len; i++) {
-        trie_sort(*(t->edges + i), cmpfn);
+        trie_sort(*(t->edges + i), cmpf);
     }
 }
 
@@ -193,7 +227,7 @@ loop_stack_print(struct trie_loop *loop) {
 
 char *
 loop_stack_sprint_kv(struct trie_loop *loop) {
-    struct word_trie *trie = TAILQ_LAST(&loop->stack, loop_head);
+    struct word_trie *trie = LOOP_ONSTACK_TRIE(loop);
     char *buf = NULL;
     int len = 0;
     int pos = 0;
@@ -206,6 +240,7 @@ loop_stack_sprint_kv(struct trie_loop *loop) {
     }
     return buf;
 }
+
 
 // XXX Sure that guard_fn works with one-node branch
 static struct trie_loop *
@@ -318,10 +353,18 @@ trie_loopX3(struct word_trie *trie, struct trie_loop *loop) {
     }
 }
 
+
+/*
+ ************************* Loop functions ******************************************
+ */
+
+/** Use trie_loopX2 for reducing number of if statements
+*/
 struct trie_loop *
 trie_loop_branch(struct word_trie *t, struct trie_loop *loop) {
     return trie_loopX2(t, loop);
 }
+
 
 struct trie_loop *
 trie_filter_branch(struct word_trie *t, struct trie_loop *loop) {
@@ -331,6 +374,7 @@ trie_filter_branch(struct word_trie *t, struct trie_loop *loop) {
     }
     return trie_loopX3(t, loop);
 }
+
 
 struct word_trie *
 trie_loop_children(struct word_trie *cell, struct word_trie *host) {
@@ -342,6 +386,11 @@ trie_loop_children(struct word_trie *cell, struct word_trie *host) {
     }
     return cell;
 }
+
+
+/*
+ **************************** Comporators ******************************************
+ */
 
 int
 trie_sort_path_label_asc(const void *a, const void *b) {
@@ -382,15 +431,25 @@ trie_sort_path_label_desc(const void *a, const void *b) {
     return -strcmp(aw, bw);
 }
 
+
+/*
+ ************************** Filter guards ******************************************
+ */
+
+/** Filter only branches with no children
+*/
 int
 trie_filter_branch_end(const struct word_trie *trie) {
-	if(trie->len) {
-		return 0;
-	} else {
+    if(trie->len) {
+        return 0;
+    } else {
         return 1;
     }
 }
 
+
+/** Filter branches with data leafs
+*/
 int
 trie_filter_has_data(const struct word_trie *trie) {
     if(TAILQ_EMPTY(&trie->leafs)) {
@@ -400,14 +459,5 @@ trie_filter_has_data(const struct word_trie *trie) {
     }
 }
 
-int
-trie_has_data(struct word_trie *trie, cmpfn fn, void *value) {
-    struct leaf_list *lfls = NULL;
-    TAILQ_FOREACH(lfls, &trie->leafs, leaf) {
-        if(!fn(value, lfls->data)) {
-            return 1;
-        }
-    }
-    return 0;
-}
+
 

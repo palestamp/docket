@@ -1,5 +1,5 @@
-#ifndef _H_DOCKET__TRIE
-#define _H_DOCKET__TRIE
+#ifndef DOCKET_TRIE_H
+#define DOCKET_TRIE_H
 
 #include "cmpfn.h"
 #include "filter.h"
@@ -26,7 +26,6 @@ struct word_trie {
 
 struct trie_loop;
 typedef int(*loop_guard)(const struct word_trie *wt);
-//typedef int(*filter_fn)(const struct word_trie *wt, const struct trie_loop *loop);
 struct trie_loop {
     int edge_offset;
     int pass;
@@ -41,23 +40,21 @@ struct word_trie * trie_new(void);
 /*
  * Callback function for trie_over_path_apply
  */
-typedef struct word_trie *(*trie_path_iter_cb)(struct word_trie *t, const char *path);
+typedef struct word_trie *(*trie_path_iter_cb)(struct word_trie *t, const char *word);
 
 /*
  * Apply function over all chunks in path
  */
 struct word_trie * trie_over_path_apply(trie_path_iter_cb cb, struct word_trie *t, const char *path);
 
-struct word_trie * trie_get(struct word_trie *t, const char *word);
 struct word_trie * trie_get_path(struct word_trie *, const char * path);
 
-struct word_trie * trie_add(struct word_trie *t, const char *word);
 struct word_trie * trie_insert_path(struct word_trie *, const char * path);
 struct word_trie * trie_append_child(struct word_trie *host, struct word_trie *child);
 void trie_insert_by_path(struct word_trie *trie, const char *path, void *data);
 
 // check for requested value iin trie's leaf array
-int trie_has_data(struct word_trie *trie, cmpfn fn, void *value);
+int trie_has_value(struct word_trie *trie, cmpfn fn, void *value);
 
 void trie_sort(struct word_trie *t, cmpfn comporator);
 void trie_print(struct word_trie *t);

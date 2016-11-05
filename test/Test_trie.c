@@ -4,29 +4,6 @@
 #include "../src/trie.h"
 #include "../src/filter.h"
 
-void test_trie_get_path(void) {
-    struct word_trie *root = trie_new();
-    struct word_trie *trie = NULL;
-    trie = trie_add(root, "a");
-    trie = trie_add(trie, "b");
-    trie = trie_add(trie, "c");
-    trie = trie_add(trie, "d");
-    struct word_trie *trie2 = trie_get_path(root, "a:b:c:d");
-    TEST_ASSERT_EQUAL(trie, trie2);
-}
-
-void test_trie_get_path2(void) {
-    struct word_trie *root = trie_new();
-    struct word_trie *trie = NULL;
-    trie = trie_add(root, "moody");
-    trie = trie_add(trie, "banana");
-    trie = trie_add(trie, "going");
-    trie = trie_add(trie, "to");
-    trie = trie_add(trie, "dance");
-    struct word_trie *trie2 = trie_get_path(root, "moody:banana:going:to:dance");
-    TEST_ASSERT_EQUAL(trie, trie2);
-}
-
 void test_trie_insert_path(void) {
     struct word_trie *root = trie_new();
     struct word_trie *trie = NULL;
@@ -452,8 +429,6 @@ void test_end_filter_tilda_only_nodes(void) {
 int
 main(void) {
     UNITY_BEGIN();
-    RUN_TEST(test_trie_get_path);
-    RUN_TEST(test_trie_get_path2);
     RUN_TEST(test_trie_insert_path);
     RUN_TEST(test_trie_insert_path2);
     RUN_TEST(test_trie_loop);

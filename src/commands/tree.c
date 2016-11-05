@@ -72,7 +72,7 @@ cmd_tree(int argc, const char **argv) {
         }
 
         // filter sources by alias name
-        if (name && (trie_has_data(name_node, cmp_str, name) == 0)) {
+        if (name && (trie_has_value(name_node, cmp_str, name) == 0)) {
             continue;
         }
 
@@ -107,11 +107,13 @@ print_offsets(struct tree_padding *padding) {
     fprintf(stdout, "]\n");
 }
 
+
 static void
 trie_offset_advance(struct tree_padding *to, int len) {
     to->offsets[to->offcursor] = len;
     to->offcursor++;
 }
+
 
 static void
 trie_offset_return(struct tree_padding *to) {
@@ -119,12 +121,14 @@ trie_offset_return(struct tree_padding *to) {
     to->offcursor--;
 }
 
+
 static void
 trie_offset_invert_last(struct tree_padding *to) {
     if(to->offcursor > 0) {
         to->offsets[to->offcursor - 1] *= -1;
     }
 }
+
 
 static void
 print_head(const struct word_trie *trie_host, struct tree_padding *padding) {

@@ -3,35 +3,35 @@
 
 #include "cfdm.h"
 
-#define SCANNER_LINE_START 0
-#define SCANNER_POS_START  0
 
 struct scanner {
     char *buf;
     size_t pos;
-    size_t line;
-    size_t lpos;
     size_t len;
 };
 
+
 #define SCANNER_CURSOR(_scanner) \
     ((_scanner)->buf + (_scanner)->pos)
-
 
 
 #define SCANNER_ADVANCE(_scanner) do { \
     (_scanner)->pos++;                 \
 } while(0)
 
+
 #define SCANNER_RETREAT(_scanner, _len) do { \
     (_scanner)->pos -= (_len);               \
 } while(0)
 
+
 #define SCANNER_END(_scanner)                \
-    ((_scanner)->pos == (_scanner)->len)     \
+    ((_scanner)->pos == (_scanner)->len)
+
 
 #define SCANNER_CURRENT_CHAR(_scanner)  \
     *(SCANNER_CURSOR(_scanner))
+
 
 void scanner_own_cfdm(struct scanner *s, struct cfdmap *m);
 int scanner_get_title(struct scanner *s, int *len);
