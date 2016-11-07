@@ -3,8 +3,8 @@
 
 #include <stdio.h>
 
-#include "trie.h"
-#include <scanner.h>
+#include "trie_util.h"
+#include "scanner.h"
 
 struct kvsrc {
     struct word_trie *trie;

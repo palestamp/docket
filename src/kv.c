@@ -15,29 +15,36 @@
 int
 kv_exists(const char *file_path) {
     if(access(file_path, R_OK | W_OK) == 0) {
-        struct stat sb;
-        if(stat(file_path, &sb) == 0 && sb.st_size > 0) {
-            return 1;
-        }
+        return 1;
     }
     return 0;
 }
+
 
 struct kvsrc *
 kv_load(const char *file_path, void(*parse)(struct kvsrc *kv, struct scanner *s)) {
     struct kvsrc *kv = malloc(sizeof(struct kvsrc));
     kv->trie = trie_new();
-    kv->origin = fopen(file_path, "r+");
 
-    struct cfdmap *m = malloc(sizeof(struct cfdmap));
-    struct scanner *s = malloc(sizeof(struct scanner));
+    const char *mode = "r+";
+    if (!kv_exists(file_path)) {
+        mode = "w";
+    }
+    kv->origin = fopen(file_path, mode);
 
-    map(file_path, m);
+    struct stat sb;
+    // if file has content - parse it
+    if(stat(file_path, &sb) == 0 && sb.st_size > 0) {
+        struct cfdmap *m = malloc(sizeof(struct cfdmap));
+        struct scanner *s = malloc(sizeof(struct scanner));
 
-    scanner_own_cfdm(s, m);
+        map(file_path, m);
 
-    while(!SCANNER_END(s)) {
-        parse(kv, s);
+        scanner_own_cfdm(s, m);
+
+        while(!SCANNER_END(s)) {
+            parse(kv, s);
+        }
     }
 
     return kv;
@@ -50,6 +57,7 @@ kv_parse(struct kvsrc *kv, struct scanner *s) {
     if((s->pos == 0) || (*(cursor - 1) == '\n')) {
         /* if line starts with any non-alphabetic character - skip this line */
         if(!isalpha((int)(*cursor))) {
+            SCANNER_ADVANCE(s);
             return;
         }
 
@@ -62,6 +70,7 @@ kv_parse(struct kvsrc *kv, struct scanner *s) {
 
         kv_add(kv, alloced_path, (void *)alloced_data);
         free(alloced_path);
+        free(alloced_data);
     }
     SCANNER_ADVANCE(s);
 }
@@ -69,13 +78,16 @@ kv_parse(struct kvsrc *kv, struct scanner *s) {
 
 void
 kv_add(struct kvsrc *kv, const char * accessor_string, const char *value) {
+    // XXX strdup here and in  kv_parse
     trie_insert_by_path(kv->trie, accessor_string, (void *)strdup(value));
 }
+
 
 struct word_trie *
 kv_get(struct kvsrc *kv, const char * accessor_string) {
     return trie_get_path(kv->trie, accessor_string);
 }
+
 
 int
 kv_has(struct kvsrc *kv, const char *filter, const char *value) {
@@ -93,6 +105,7 @@ kv_has(struct kvsrc *kv, const char *filter, const char *value) {
     return 0;
 }
 
+
 int
 kv_flush(struct kvsrc *kv, char **buf) {
     int len = 0;
@@ -107,6 +120,7 @@ kv_flush(struct kvsrc *kv, char **buf) {
     }
     return 1;
 }
+
 
 int
 kv_sync(struct kvsrc *kv) {
