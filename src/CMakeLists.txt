@@ -8,9 +8,11 @@ add_library(libdocket STATIC
 
 add_executable(docket
     main.c
+    command.c
     docket.c
     config.c
     trie.c
+    trie_util.c
     filter.c
     strbuf.c
     cfdm.c
