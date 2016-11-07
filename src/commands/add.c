@@ -54,18 +54,10 @@ cmd_add(int argc, const char **argv) {
         } else if (kv_has(kv, source_accessor, source_path)) {
             die_error("Duplicate source");
         } else {
-            int max = 0;
-            int found = 0;
+
             char max_str[24] = "";
-
             struct word_trie *root = kv_get(kv, DCT_CONFIG_SOURCES_TRIE_PATH);
-            struct word_trie *swap_trie  = NULL;
-            while((swap_trie = trie_loop_children(swap_trie, root))) {
-                if((found = atoi(swap_trie->word)) > max) {
-                    max = found;
-                }
-            }
-
+            int max = trie_get_max_int_child(root);
             sprintf(max_str, "%d", max + 1);
 
             char *new_source_accessor = build_path(DCT_CONFIG_SOURCES_TRIE_PATH, max_str, "source");
