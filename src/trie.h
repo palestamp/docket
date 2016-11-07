@@ -53,8 +53,9 @@ struct word_trie * trie_insert_path(struct word_trie *, const char * path);
 struct word_trie * trie_append_child(struct word_trie *host, struct word_trie *child);
 void trie_insert_by_path(struct word_trie *trie, const char *path, void *data);
 
-// check for requested value iin trie's leaf array
+// check for requested value in trie's leaf array
 int trie_has_value(struct word_trie *trie, cmpfn fn, void *value);
+void *trie_get_value(struct word_trie *trie, int index);
 
 void trie_sort(struct word_trie *t, cmpfn comporator);
 void trie_print(struct word_trie *t);

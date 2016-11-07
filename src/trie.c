@@ -155,6 +155,17 @@ trie_get_path(struct word_trie *t, const char *path) {
     return trie_over_path_apply(trie_get, t, path);
 }
 
+void *
+trie_get_value(struct word_trie *trie, int index) {
+    int i = 0;
+    struct leaf_list *lfls = NULL;
+    TAILQ_FOREACH(lfls, &trie->leafs, leaf) {
+        if(i == index) {
+            return lfls->data;
+        }
+    }
+    return NULL;
+}
 
 int
 trie_has_value(struct word_trie *trie, cmpfn cmpf, void *value) {
