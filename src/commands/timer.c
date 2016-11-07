@@ -1,6 +1,8 @@
 #include <stdlib.h>
 #include <time.h>
+
 #include "command.h"
+#include "options.h"
 #include "kv.h"
 #include "strbuf.h"
 #include "docket.h"
@@ -25,15 +27,22 @@ enum timer_acc_mode {
 };
 
 
-struct timer;
-struct _timer_vmtable {
-    int (*start)(struct timer *timer);
-    int (*stop) (struct timer *timer);
+enum timer_call_flag {
+    USER_CALL =   1 << 0,
+    CHILD_CALL =  1 << 1,
+    PARENT_CALL = 1 << 2,
 };
 
 
-static int regular_start(struct timer *tm);
-static int regular_stop(struct timer *tm);
+struct timer;
+struct _timer_vmtable {
+    int (*start)(struct timer *timer, int suppress_error, int flags);
+    int (*stop) (struct timer *timer, int suppress_error, int flags);
+};
+
+
+static int regular_start(struct timer *tm, int suppress_error, int flags);
+static int regular_stop(struct timer *tm, int suppress_error, int flags);
 struct _timer_vmtable standalone_vmt = {
     regular_start,
     regular_stop,
@@ -42,6 +51,7 @@ struct _timer_vmtable standalone_vmt = {
 
 struct timer {
     const char *name;
+    struct timer *parent;
     enum timer_type type;
     struct kvsrc *kv;
     struct word_trie *index_node;
@@ -54,8 +64,8 @@ static struct timer *get_timer_by_name(struct kvsrc *kv, const char *timer_name)
 int timer_is_running(struct timer *tm);
 static unsigned long timer_running_time(struct timer *tm, int mode);
 static void timer_bind_methods(struct timer *timer);
-static int timer_start(struct timer *timer);
-static int timer_stop(struct timer *timer);
+static int timer_start(struct timer *timer, int suppress_error, int flags);
+static int timer_stop(struct timer *timer, int suppress_error, int flags);
 const char *duration_from_ul(char buf[], unsigned long t);
 
 static int cmd_start(int argc, const char **argv);
@@ -89,27 +99,69 @@ cmd_timer(int argc, const char **argv) {
     return 1;
 }
 
-
-static int
-cmd_new(int argc, const char **argv) {
-    if (argc < 1) return 0;
-
-    struct kvsrc *kv = NULL;
-    kv = kv_load(DOCKET_TIMER_STD_PATH, kv_parse);
+static struct timer *
+create_timer(struct kvsrc *kv,
+             const char *timer_name,
+             const char *parent,
+             const char *timer_type,
+             int suppress_duplicate) {
+    struct timer *tm = malloc(sizeof(struct timer));
+    tm->name = NULL;
+    tm->parent = NULL;
+    tm->kv = kv;
 
     struct timer *found = NULL;
-    if((found = get_timer_by_name(kv, argv[0])) != NULL) {
+    if((found = get_timer_by_name(kv, timer_name)) != NULL) {
+        if (suppress_duplicate) {
+            return NULL;
+        }
         die_error("Duplicate timer");
     }
+    tm->name = timer_name;
 
     char max_str[24] = "";
     struct word_trie *index_node = kv_get(kv, "docket:timer");
     int max = trie_get_max_int_child(index_node);
     sprintf(max_str, "%d", max + 1);
 
-    kv_add(kv, build_path("docket:timer", max_str, "name"), argv[0]);
-    kv_add(kv, build_path("docket:timer", max_str, "type"), "regular");
+    kv_add(kv, build_path("docket:timer", max_str, "name"), timer_name);
+    kv_add(kv, build_path("docket:timer", max_str, "type"), timer_type);
 
+    if(parent) {
+        if((found = get_timer_by_name(kv, parent)) == NULL) {
+            die_error("No such timer '%s'", parent);
+        }
+        tm->parent = found;
+        kv_add(kv, build_path("docket:timer", max_str, "parent"), parent);
+    }
+
+    return tm;
+}
+
+static int
+cmd_new(int argc, const char **argv) {
+    char *parent = "*";
+    struct option timer_new_options[] = {
+        {"p", "parent", {.required = 0, .has_args = 1}, &parent},
+        {NULL, NULL, {0}, NULL},
+    };
+
+    if (argc < 1) return 0;
+
+    const char *timer_name = argv[0];
+    argc--, argv++;
+
+    char err[1024] = "";
+    int rv = options_populate(err, &argc, &argv, timer_new_options);
+    if (rv != 0) {
+        die_error("%s", err);
+    }
+
+    struct kvsrc *kv = NULL;
+    kv = kv_load(DOCKET_TIMER_STD_PATH, kv_parse);
+    // root timer
+    create_timer(kv, "*", NULL, "regular", 1);
+    create_timer(kv, timer_name, parent,  "regular", 0);
     kv_sync(kv);
     return 1;
 }
@@ -127,7 +179,7 @@ cmd_start(int argc, const char **argv) {
         die_error("No such timer '%s'", argv[0]);
     }
 
-    int rc = timer_start(tm);
+    int rc = timer_start(tm, 0, USER_CALL);
     if (rc != 1) {
         return 0;
     }
@@ -149,7 +201,9 @@ cmd_stop(int argc, const char **argv) {
         die_error("No such timer '%s'", argv[0]);
     }
 
-    int rc = timer_stop(tm);
+    fprintf(stderr, "start");
+    int rc = timer_stop(tm, 0, USER_CALL);
+    fprintf(stderr, "stop");
     if (rc != 1) {
         return 0;
     }
@@ -216,8 +270,14 @@ cmd_stat(int argc, const char **argv) {
 static struct timer *
 init_timer(struct timer *tm) {
     tm->name = trie_get_value(trie_get_path(tm->index_node, "name"), 0);
+    tm->parent = NULL;
 
     const char *type = trie_get_value(trie_get_path(tm->index_node, "type"), 0);
+    const char *parent = trie_get_value(trie_get_path(tm->index_node, "parent"), 0);
+
+    if (parent) {
+        tm->parent = get_timer_by_name(tm->kv, parent);
+    }
 
     if (strcmp(type, "regular") == 0) {
         tm->type = REGULAR;
@@ -251,14 +311,14 @@ get_timer_by_name(struct kvsrc *kv, const char *name) {
 
 
 static int
-timer_start(struct timer *tm) {
-    return tm->vmt->start(tm);
+timer_start(struct timer *tm, int suppress_error, int flags) {
+    return tm->vmt->start(tm, suppress_error, flags);
 }
 
 
 static int
-timer_stop(struct timer *tm) {
-    return tm->vmt->stop(tm);
+timer_stop(struct timer *tm, int suppress_error, int flags) {
+    return tm->vmt->stop(tm, suppress_error, flags);
 }
 
 
@@ -293,8 +353,11 @@ timer_is_running(struct timer *tm) {
 
 
 static int
-regular_start(struct timer *tm) {
+regular_start(struct timer *tm, int suppress_error, int flags) {
     if(timer_is_running(tm)) {
+        if (suppress_error) {
+            return 0;
+        }
         die_error("Timer '%s' already running", tm->name);
     }
     struct word_trie *timings = trie_get_path(tm->index_node, "timings");
@@ -306,14 +369,67 @@ regular_start(struct timer *tm) {
     char tbuf[16] = "";
     snprintf(tbuf, 16, "%lu", time(NULL));
     trie_insert_by_path(tm->index_node, build_path("timings", max_str, "start"), (void *)strdup(tbuf));
+
+    if(tm->parent) {
+        timer_start(tm->parent, 1, CHILD_CALL);
+    }
     return 1;
 }
 
 
+
+int timer_has_running_children(struct timer *tm) {
+    struct trie_loop loop = {0};
+    struct trie_loop *loop_ptr = &loop;
+    struct path_filter *pf = compile_filter_from_s("docket:timer:*:parent");
+    TRIE_BRANCH_LOOP_INIT(&loop, pf);
+    while((loop_ptr = trie_filter_branch(tm->kv->trie, loop_ptr))) {
+        if (trie_has_value(LOOP_ONSTACK_TRIE(loop_ptr), cmp_str, (void *)tm->name)) {
+            return 1;
+        }
+    }
+    return 0;
+}
+
+typedef int(*timerfn)(struct timer *timer, int suppress_error, int flags);
+
+void
+timer_children_apply(struct timer *tm, timerfn fn, int suppress_error, int flags) {
+    struct trie_loop loop = {0};
+    struct trie_loop *loop_ptr = &loop;
+    struct path_filter *pf = compile_filter_from_s("docket:timer:*:parent");
+    TRIE_BRANCH_LOOP_INIT(&loop, pf);
+    
+    while((loop_ptr = trie_filter_branch(tm->kv->trie, loop_ptr))) {
+        if (trie_has_value(LOOP_ONSTACK_TRIE(loop_ptr), cmp_str, (void *)tm->name)) {
+            struct word_trie *index_node = TAILQ_PREV(LOOP_ONSTACK_TRIE(loop_ptr), loop_head, tries);
+
+            struct timer tmc = {0};
+            tmc.kv = tm->kv;
+            tmc.index_node = index_node;
+            init_timer(&tmc);
+            fn(&tmc, suppress_error, CHILD_CALL);
+        }
+        fprintf(stderr, "%p\n", tm->kv->trie);
+    }
+
+}
+
 static int
-regular_stop(struct timer *tm) {
+regular_stop(struct timer *tm, int suppress_error, int flags) {
+    fprintf(stderr, "asdasdasdasd");
     if(!timer_is_running(tm)) {
+        if (suppress_error) {
+            return 0;
+        }
         die_error("Timer '%s' not running", tm->name);
+    }
+    if(timer_has_running_children(tm)) {
+        if((CHILD_CALL & flags) != 0) {
+            return 0;
+        } else {
+            timer_children_apply(tm, timer_stop, 1, PARENT_CALL);
+        }
     }
     struct word_trie *timings = trie_get_path(tm->index_node, "timings");
 
@@ -322,6 +438,7 @@ regular_stop(struct timer *tm) {
     char tbuf[16] = "";
     snprintf(tbuf, 16, "%lu", time(NULL));
     trie_insert_by_path(tm->index_node, build_path("timings", max_str, "stop"), (void *)strdup(tbuf));
+
     return 1;
 }
 

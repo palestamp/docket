@@ -157,6 +157,10 @@ trie_get_path(struct word_trie *t, const char *path) {
 
 void *
 trie_get_value(struct word_trie *trie, int index) {
+    if (trie == NULL) {
+        return NULL;
+    }
+
     int i = 0;
     struct leaf_list *lfls = NULL;
     TAILQ_FOREACH(lfls, &trie->leafs, leaf) {
@@ -390,7 +394,9 @@ trie_filter_branch(struct word_trie *t, struct trie_loop *loop) {
 struct word_trie *
 trie_loop_children(struct word_trie *cell, struct word_trie *host) {
     // first iteration
-    if (cell == NULL) {
+    if (host == NULL) {
+        return NULL;
+    } else if (cell == NULL) {
         cell = host->edges[0];
     } else if (cell->pos < host->len){
         cell = host->edges[cell->pos + 1];
