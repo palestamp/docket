@@ -2,65 +2,46 @@
 #include <string.h>
 
 #include "abspath.h"
+#include "command.h"
 #include "commands.h"
 
 
-
-int cmd_help(int argc, const char **argv) {
-    printf("help\n");
-    return 1;
-}
-
+int cmd_help(int argc, const char **argv);
 static const struct command commands[] = {
-    {"add", cmd_add, EMPTY_FLAG},
-    {"list", cmd_list, EMPTY_FLAG},
-    {"tree", cmd_tree, EMPTY_FLAG},
-    {"help", cmd_help, EMPTY_FLAG},
-    {NULL, NULL, 0},
+    {"add", cmd_add},
+    {"list", cmd_list},
+    {"tree", cmd_tree},
+    {"help", cmd_help},
+    {NULL, NULL},
 };
 
-
-struct command *
-get_command(const char *name) {
-    struct command *ccmds = (struct command *)commands;
-
-    for(;(*ccmds).name != NULL; ccmds++) {
-        if (!strcmp(ccmds->name, name)) {
-            return ccmds;
-        }
-    }
-    return get_command("help");
-}
-
-/*
- * Interceptor between caller and real command execution
- * Should handle optional option flags
- */
-int
-handle_cmd(struct command *cmd, int argc, const char **argv) {
-    return cmd->cmd(argc, argv);
-}
-
-
+// XXX SMELLS
 int
 main(int argc, const char **argv) {
+    // skip program name
+    argc--; argv++;
     const char *root_cmd = NULL;
-    if (argc == 1) {
-        root_cmd = "help";
-    } else {
-        root_cmd = argv[1];
-        argv++;
-        argc--;
+
+    root_cmd =  (argc < 1) ? "help" : argv[0];
+
+    struct command *cmd = get_command(root_cmd, commands);
+    if (cmd == NULL) {
+        return get_command("help", commands)->cmd(argc, argv);
     }
-    struct command *cmd = get_command(root_cmd);
-    if (cmd) {
-        argv++;
-        argc--;
-        if (handle_cmd(cmd, argc, argv) == 0) {
-            cmd = get_command("help");
-            return handle_cmd(cmd, argc, argv);
-        }
+
+    if (cmd->cmd(--argc, ++argv) == 0) {
+        cmd = get_command("help", commands);
+        return cmd->cmd(argc, argv);
     }
 
     return 0;
 }
+
+
+int
+cmd_help(int argc, const char **argv) {
+    printf("help\n");
+    return 1;
+}
+
+
