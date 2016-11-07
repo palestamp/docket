@@ -206,7 +206,7 @@ static void
 trie_printX(struct word_trie *t, int l) {
     int i;
     if(t != NULL && t->word != NULL) {
-        printf("%*s%s\n", l, "",  t->word);
+        fprintf(stderr, "%*s%s\n", l, "",  t->word);
         l++;
     }
     for(i= 0; i < t->len; i++) {
@@ -325,7 +325,6 @@ trie_loopX3(struct word_trie *trie, struct trie_loop *loop) {
     } else {
         // get trie node to process
         struct word_trie *last = TAILQ_LAST(&loop->stack, loop_head);
-
         // if latest node have right sibling - iterate over them
         if(last->len > 0 && *(last->edges + loop->edge_offset)) {
             // else - go to the upper level
@@ -338,7 +337,7 @@ trie_loopX3(struct word_trie *trie, struct trie_loop *loop) {
                 return trie_loopX3(last, loop);
             }
             loop->edge_offset = 0;
-
+            
             TAILQ_INSERT_TAIL(&loop->stack, newt, tries);
             // check that filter len is lesser or equal to path len
             // this caused by 'tilda' nodes where filter can be  shorter than path

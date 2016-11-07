@@ -25,7 +25,6 @@ struct kvsrc *
 kv_load(const char *file_path, void(*parse)(struct kvsrc *kv, struct scanner *s)) {
     struct kvsrc *kv = malloc(sizeof(struct kvsrc));
     kv->trie = trie_new();
-
     const char *mode = "r+";
     if (!kv_exists(file_path)) {
         mode = "w";

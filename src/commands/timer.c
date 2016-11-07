@@ -8,7 +8,7 @@
 #include "docket.h"
 #include "report.h"
 
-#define DOCKET_TIMER_STD_PATH "/Users/stas/.timer"
+#define DOCKET_TIMER_STD_PATH ".timer"
 enum timer_op_st {
     TIMER_OP_OK,
     TIMER_OP_ERROR,
@@ -201,9 +201,7 @@ cmd_stop(int argc, const char **argv) {
         die_error("No such timer '%s'", argv[0]);
     }
 
-    fprintf(stderr, "start");
     int rc = timer_stop(tm, 0, USER_CALL);
-    fprintf(stderr, "stop");
     if (rc != 1) {
         return 0;
     }
@@ -395,14 +393,12 @@ typedef int(*timerfn)(struct timer *timer, int suppress_error, int flags);
 
 void
 timer_children_apply(struct timer *tm, timerfn fn, int suppress_error, int flags) {
-    struct trie_loop loop = {0};
-    struct trie_loop *loop_ptr = &loop;
-    struct path_filter *pf = compile_filter_from_s("docket:timer:*:parent");
-    TRIE_BRANCH_LOOP_INIT(&loop, pf);
-    
-    while((loop_ptr = trie_filter_branch(tm->kv->trie, loop_ptr))) {
-        if (trie_has_value(LOOP_ONSTACK_TRIE(loop_ptr), cmp_str, (void *)tm->name)) {
-            struct word_trie *index_node = TAILQ_PREV(LOOP_ONSTACK_TRIE(loop_ptr), loop_head, tries);
+    struct word_trie *host = kv_get(tm->kv, "docket:timer");
+    struct word_trie *swap = NULL;
+    while((swap = trie_loop_children(swap, host))) {
+        struct word_trie *parent = trie_get_path(swap, "parent");
+        if (parent && trie_has_value(parent, cmp_str, (void *)tm->name)) {
+            struct word_trie *index_node = swap;
 
             struct timer tmc = {0};
             tmc.kv = tm->kv;
@@ -410,14 +406,12 @@ timer_children_apply(struct timer *tm, timerfn fn, int suppress_error, int flags
             init_timer(&tmc);
             fn(&tmc, suppress_error, CHILD_CALL);
         }
-        fprintf(stderr, "%p\n", tm->kv->trie);
     }
 
 }
 
 static int
 regular_stop(struct timer *tm, int suppress_error, int flags) {
-    fprintf(stderr, "asdasdasdasd");
     if(!timer_is_running(tm)) {
         if (suppress_error) {
             return 0;
