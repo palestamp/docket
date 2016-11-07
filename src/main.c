@@ -11,6 +11,7 @@ static const struct command commands[] = {
     {"add", cmd_add},
     {"list", cmd_list},
     {"tree", cmd_tree},
+    {"timer", cmd_timer},
     {"help", cmd_help},
     {NULL, NULL},
 };

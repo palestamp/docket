@@ -25,6 +25,7 @@ add_executable(docket
     commands/add.c
     commands/list.c
     commands/tree.c
+    commands/timer.c
 )
 
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -O0 -ggdb")
