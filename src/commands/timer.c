@@ -8,7 +8,7 @@
 #include "docket.h"
 #include "report.h"
 
-#define DOCKET_TIMER_STD_PATH ".timer"
+#define DOCKET_TIMER_STD_PATH "/Users/stas/.timer"
 enum timer_op_st {
     TIMER_OP_OK,
     TIMER_OP_ERROR,
@@ -404,7 +404,7 @@ timer_children_apply(struct timer *tm, timerfn fn, int suppress_error, int flags
             tmc.kv = tm->kv;
             tmc.index_node = index_node;
             init_timer(&tmc);
-            fn(&tmc, suppress_error, CHILD_CALL);
+            fn(&tmc, suppress_error, PARENT_CALL);
         }
     }
 
@@ -418,6 +418,7 @@ regular_stop(struct timer *tm, int suppress_error, int flags) {
         }
         die_error("Timer '%s' not running", tm->name);
     }
+
     if(timer_has_running_children(tm)) {
         if((CHILD_CALL & flags) != 0) {
             return 0;
@@ -425,10 +426,10 @@ regular_stop(struct timer *tm, int suppress_error, int flags) {
             timer_children_apply(tm, timer_stop, 1, PARENT_CALL);
         }
     }
+
     struct word_trie *timings = trie_get_path(tm->index_node, "timings");
 
     const char *max_str = trie_get_max_int_child_node(timings)->word;
-
     char tbuf[16] = "";
     snprintf(tbuf, 16, "%lu", time(NULL));
     trie_insert_by_path(tm->index_node, build_path("timings", max_str, "stop"), (void *)strdup(tbuf));
