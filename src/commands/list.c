@@ -13,9 +13,9 @@
 
 int
 cmd_list(int argc, const char **argv) {
-    const struct option list_options[] = {
-        {0},
-    };
+//    const struct option list_options[] = {
+//        {0},
+//    };
 
     const char * config_path = get_config_path(NULL);
     if(!kv_exists(config_path)) {

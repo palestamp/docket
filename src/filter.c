@@ -24,7 +24,7 @@ compile_filter_from_s(const char *pattern) {
 
     int path_idx = 0;
     int i = 0;
-    cursor = pattern;
+    cursor = (char *)pattern;
     while(1) {
         if(*cursor == ':' || *cursor == '\0') {
             *(pf->patterns + path_idx) = copy_slice(cursor - i , i);
