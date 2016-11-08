@@ -36,6 +36,9 @@ options_populate(char *err, int *iargc, const char ***iargv, struct option sopt[
                                     (o->long_name ? o->long_name : o->short_name));
                             return 1;
                         }
+                    } else {
+                        // just make it not NULL without allocs
+                        *(o->value) = (char *)argv[i];
                     }
                 }
                 sopt_idx++;

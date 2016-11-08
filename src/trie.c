@@ -155,21 +155,6 @@ trie_get_path(struct word_trie *t, const char *path) {
     return trie_over_path_apply(trie_get, t, path);
 }
 
-void *
-trie_get_value(struct word_trie *trie, int index) {
-    if (trie == NULL) {
-        return NULL;
-    }
-
-    int i = 0;
-    struct leaf_list *lfls = NULL;
-    TAILQ_FOREACH(lfls, &trie->leafs, leaf) {
-        if(i == index) {
-            return lfls->data;
-        }
-    }
-    return NULL;
-}
 
 int
 trie_has_value(struct word_trie *trie, cmpfn cmpf, void *value) {
@@ -337,7 +322,7 @@ trie_loopX3(struct word_trie *trie, struct trie_loop *loop) {
                 return trie_loopX3(last, loop);
             }
             loop->edge_offset = 0;
-            
+
             TAILQ_INSERT_TAIL(&loop->stack, newt, tries);
             // check that filter len is lesser or equal to path len
             // this caused by 'tilda' nodes where filter can be  shorter than path

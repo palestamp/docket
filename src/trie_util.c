@@ -19,6 +19,7 @@ trie_get_max_int_child(struct word_trie *host) {
     return max;
 }
 
+
 struct word_trie *
 trie_get_max_int_child_node(struct word_trie *host) {
     if (host == NULL || host->len < 1) {
@@ -37,4 +38,38 @@ trie_get_max_int_child_node(struct word_trie *host) {
         }
     }
     return ret_node;
+}
+
+
+struct leaf_list *
+trie_get_value_node(struct word_trie *trie, int index) {
+    if (trie == NULL) {
+        return NULL;
+    }
+
+    int i = 0;
+    struct leaf_list *lfls = NULL;
+    TAILQ_FOREACH(lfls, &trie->leafs, leaf) {
+        if(i == index) {
+            return lfls;
+        }
+    }
+    return NULL;
+}
+
+
+void *
+trie_get_value(struct word_trie *trie, int index) {
+    if (trie == NULL) {
+        return NULL;
+    }
+
+    int i = 0;
+    struct leaf_list *lfls = NULL;
+    TAILQ_FOREACH(lfls, &trie->leafs, leaf) {
+        if(i == index) {
+            return lfls->data;
+        }
+    }
+    return NULL;
 }
