@@ -1,0 +1,20 @@
+rm -rf out
+mkdir out
+
+BASE_DIR='../../test'
+
+exit_status=0; 
+
+for script in $BASE_DIR/integration/*sh; do
+    base=$(basename "$script")
+    ./$script > "$BASE_DIR/integration/out/${base/sh/out}" 2>&1
+
+    if ! cmp "$BASE_DIR/integration/out/${base/sh/out}" "$BASE_DIR/integration/expected/${base/sh/golden}"; then
+        echo "${script}:FAIL"
+        diff "$BASE_DIR/integration/out/${base/sh/out}" "$BASE_DIR/integration/expected/${base/sh/golden}" > "$BASE_DIR/integration/out/${base/sh/diff}"
+        exit_status=1
+    else
+        echo "${script}:PASS"
+    fi
+done
+exit $exit_status;

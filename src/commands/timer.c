@@ -80,8 +80,14 @@ static struct timer *get_timer_by_name(struct kvsrc *kv, const char *timer_name)
 int timer_is_running(struct timer *tm);
 static unsigned long timer_running_time(struct timer *tm, int mode);
 static void timer_bind_methods(struct timer *timer);
+
+// call timer-type defined operations
 static int timer_start(struct timer *timer, int suppress_error, int flags);
 static int timer_stop(struct timer *timer, int suppress_error, int flags);
+
+// trie-level implementation, always stops timer
+static void __docket_timer_stop(struct timer *tm);
+
 const char *duration_from_ul(char buf[], unsigned long t);
 static struct timer * create_timer(struct kvsrc *kv,
                                    const char *timer_name,
@@ -366,6 +372,18 @@ cmd_attr(int argc, const char **argv) {
 
 static int
 cmd_stat(int argc, const char **argv) {
+    char *status_only = NULL;
+    struct option timer_stat_options[] = {
+        {"s", "status-only", {.required = 0, .has_args = 0}, &status_only},
+        {NULL, NULL, {0}, NULL},
+    };
+
+    char err[1024] = "";
+    int rv = options_populate(err, &argc, &argv, timer_stat_options);
+    if (rv != 0) {
+        die_error("%s", err);
+    }
+
     struct kvsrc *kv = NULL;
     kv = kv_load(DOCKET_TIMER_STD_PATH, kv_parse);
 
@@ -380,14 +398,17 @@ cmd_stat(int argc, const char **argv) {
         init_timer(&tm);
 
         memset(buf, 0, 24);
-        fprintf(stdout, "%-15s %-10s %-10s\n",
+        fprintf(stdout, "%-15s %-10s",
                 tm.name,
-                (timer_is_running(&tm) ? "running" : "stopped"),
-                duration_from_ul(buf, timer_running_time(&tm, TR_ALL)));
+                (timer_is_running(&tm) ? "running" : "stopped"));
+        if(status_only == NULL) {
+            fprintf(stdout, " %-10s", duration_from_ul(buf, timer_running_time(&tm, TR_ALL)));
+        }
+        fputc('\n', stdout);
     }
     return 1;
-}
 
+}
 
 static struct timer *
 create_timer(struct kvsrc *kv,
@@ -528,15 +549,8 @@ timer_is_running(struct timer *tm) {
     return 1;
 }
 
-
-static int
-concrete_start(struct timer *tm, int suppress_error, int flags) {
-    if(timer_is_running(tm)) {
-        if (suppress_error) {
-            return 0;
-        }
-        die_error("Timer '%s' already running", tm->name);
-    }
+static void
+__docket_timer_start(struct timer *tm) {
     struct word_trie *timings = trie_get_path(tm->index_node, "timings");
 
     char max_str[24] = "";
@@ -546,6 +560,18 @@ concrete_start(struct timer *tm, int suppress_error, int flags) {
     char tbuf[16] = "";
     snprintf(tbuf, 16, "%lu", time(NULL));
     trie_insert_by_path(tm->index_node, build_path("timings", max_str, "start"), (void *)strdup(tbuf));
+}
+
+static int
+concrete_start(struct timer *tm, int suppress_error, int flags) {
+    if(timer_is_running(tm)) {
+        if (suppress_error) {
+            return 0;
+        }
+        die_error("Timer '%s' already running", tm->name);
+    }
+
+    __docket_timer_start(tm);
 
     if(tm->parent) {
         timer_start(tm->parent, 1, CHILD_CALL);
@@ -566,15 +592,7 @@ abstract_start(struct timer *tm, int suppress_error, int flags) {
         die_error("Abstract timer can not be manually started");
     }
 
-    struct word_trie *timings = trie_get_path(tm->index_node, "timings");
-
-    char max_str[24] = "";
-    int max = trie_get_max_int_child(timings);
-    sprintf(max_str, "%d", max + 1);
-
-    char tbuf[16] = "";
-    snprintf(tbuf, 16, "%lu", time(NULL));
-    trie_insert_by_path(tm->index_node, build_path("timings", max_str, "start"), (void *)strdup(tbuf));
+    __docket_timer_start(tm);
 
     if(tm->parent) {
         timer_start(tm->parent, 1, CHILD_CALL);
@@ -595,7 +613,9 @@ int timer_has_running_children(struct timer *tm) {
             tmc.kv = tm->kv;
             tmc.index_node = index_node;
             init_timer(&tmc);
-            return timer_is_running(&tmc);
+            if(timer_is_running(&tmc)) {
+                return 1;
+            }
         }
     }
     return 0;
@@ -619,7 +639,6 @@ timer_children_apply(struct timer *tm, timerfn fn, int suppress_error, int flags
             fn(&tmc, suppress_error, PARENT_CALL);
         }
     }
-
 }
 
 static int
@@ -639,12 +658,7 @@ concrete_stop(struct timer *tm, int suppress_error, int flags) {
         }
     }
 
-    struct word_trie *timings = trie_get_path(tm->index_node, "timings");
-
-    const char *max_str = trie_get_max_int_child_node(timings)->word;
-    char tbuf[16] = "";
-    snprintf(tbuf, 16, "%lu", time(NULL));
-    trie_insert_by_path(tm->index_node, build_path("timings", max_str, "stop"), (void *)strdup(tbuf));
+    __docket_timer_stop(tm);
 
     if(tm->parent) {
         timer_stop(tm->parent, 1, CHILD_CALL);
@@ -652,6 +666,8 @@ concrete_stop(struct timer *tm, int suppress_error, int flags) {
 
     return 1;
 }
+
+
 
 static int
 abstract_stop(struct timer *tm, int suppress_error, int flags) {
@@ -662,7 +678,8 @@ abstract_stop(struct timer *tm, int suppress_error, int flags) {
         die_error("Timer '%s' not running", tm->name);
     }
 
-    if(timer_has_running_children(tm)) {
+    int has_running_children = 0;
+    if((has_running_children = timer_has_running_children(tm))) {
         if((CHILD_CALL & flags) != 0) {
             return 0;
         } else {
@@ -670,12 +687,11 @@ abstract_stop(struct timer *tm, int suppress_error, int flags) {
         }
     }
 
-    struct word_trie *timings = trie_get_path(tm->index_node, "timings");
+    __docket_timer_stop(tm);
 
-    const char *max_str = trie_get_max_int_child_node(timings)->word;
-    char tbuf[16] = "";
-    snprintf(tbuf, 16, "%lu", time(NULL));
-    trie_insert_by_path(tm->index_node, build_path("timings", max_str, "stop"), (void *)strdup(tbuf));
+    if(has_running_children == 0 && tm->parent) {
+       timer_stop(tm->parent, 1, CHILD_CALL);
+    }   
 
     return 1;
 }
@@ -722,4 +738,14 @@ duration_from_ul(char buf[], unsigned long t) {
     int seconds = t % 60;
     sprintf(buf, "%02d:%02d:%02d", hours, minutes, seconds);
     return buf;
+}
+
+static void
+__docket_timer_stop(struct timer *tm) {
+    struct word_trie *timings = trie_get_path(tm->index_node, "timings");
+
+    const char *max_str = trie_get_max_int_child_node(timings)->word;
+    char tbuf[16] = "";
+    snprintf(tbuf, 16, "%lu", time(NULL));
+    trie_insert_by_path(tm->index_node, build_path("timings", max_str, "stop"), (void *)strdup(tbuf));
 }

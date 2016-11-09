@@ -1,0 +1,4 @@
+docket timer new work --abstract
+docket timer new work_child --parent work
+docket timer start work
+error: Abstract timer can not be manually started

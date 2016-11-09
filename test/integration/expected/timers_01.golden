@@ -1,0 +1,56 @@
+docket timer new workall
+docket timer new coding --parent workall
+docket timer new meetings --parent workall
+docket timer new workuseless --parent workall --abstract
+docket timer new interrupt --parent workuseless
+docket timer new on_the_way --parent workuseless
+docket timer start coding
+docket timer stop coding
+grep -v 'timings' ~/.timer
+docket:timer:1:name=*
+docket:timer:1:type=abstract
+docket:timer:2:name=workall
+docket:timer:2:type=concrete
+docket:timer:2:parent=*
+docket:timer:3:name=coding
+docket:timer:3:type=concrete
+docket:timer:3:parent=workall
+docket:timer:4:name=meetings
+docket:timer:4:type=concrete
+docket:timer:4:parent=workall
+docket:timer:5:name=workuseless
+docket:timer:5:type=abstract
+docket:timer:5:parent=workall
+docket:timer:6:name=interrupt
+docket:timer:6:type=concrete
+docket:timer:6:parent=workuseless
+docket:timer:7:name=on_the_way
+docket:timer:7:type=concrete
+docket:timer:7:parent=workuseless
+docket timer start on_the_way
+docket timer stop on_the_way
+docket timer set workuseless type concrete
+docket timer start on_the_way
+docket timer stop on_the_way
+grep -v 'timings' ~/.timer
+docket:timer:1:name=*
+docket:timer:1:type=abstract
+docket:timer:2:name=workall
+docket:timer:2:type=concrete
+docket:timer:2:parent=*
+docket:timer:3:name=coding
+docket:timer:3:type=concrete
+docket:timer:3:parent=workall
+docket:timer:4:name=meetings
+docket:timer:4:type=concrete
+docket:timer:4:parent=workall
+docket:timer:5:name=workuseless
+docket:timer:5:type=concrete
+docket:timer:5:parent=workall
+docket:timer:6:name=interrupt
+docket:timer:6:type=concrete
+docket:timer:6:parent=workuseless
+docket:timer:7:name=on_the_way
+docket:timer:7:type=concrete
+docket:timer:7:parent=workuseless
+

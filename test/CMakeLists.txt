@@ -3,3 +3,8 @@ target_link_libraries(trie_test libdocket Unity)
 add_test(word_trie trie_test)
 
 add_test(interactive_tree "python" "../../test/test.py")
+
+find_program (BASH_PROGRAM bash)
+if(BASH_PROGRAM)
+    add_test(integration ${BASH_PROGRAM} ${CMAKE_CURRENT_SOURCE_DIR}/integration/runner)
+endif (BASH_PROGRAM)

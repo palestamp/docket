@@ -1,0 +1,23 @@
+docket timer new work
+grep -Ev 'timing' ~/.timer
+docket:timer:1:name=*
+docket:timer:1:type=abstract
+docket:timer:2:name=work
+docket:timer:2:type=concrete
+docket:timer:2:parent=*
+docket timer new work_child --parent work
+docket timer new work_child_child --parent work_child
+docket timer set work parent work_child_child
+error: Cycle found
+grep -Ev 'timing' ~/.timer
+docket:timer:1:name=*
+docket:timer:1:type=abstract
+docket:timer:2:name=work
+docket:timer:2:type=concrete
+docket:timer:2:parent=*
+docket:timer:3:name=work_child
+docket:timer:3:type=concrete
+docket:timer:3:parent=work
+docket:timer:4:name=work_child_child
+docket:timer:4:type=concrete
+docket:timer:4:parent=work_child
