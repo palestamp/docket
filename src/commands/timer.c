@@ -254,10 +254,9 @@ get_child_by_name(struct timer *tm, const char *name, int depth) {
     while((swap = trie_loop_children(swap, host))) {
         child_count++;
         struct word_trie *parent_node = trie_get_path(swap, "parent");
-        struct word_trie *name_node = trie_get_path(swap, "name");
         // if child found
         if (parent_node && trie_has_value(parent_node, cmp_str, (void *)tm->name)) {
-            struct word_trie *index_node = swap;
+            struct word_trie *name_node = trie_get_path(swap, "name");
 
             struct timer *tmc = get_timer_by_name(tm->kv, trie_get_value(name_node, 0));
 
@@ -601,19 +600,17 @@ abstract_start(struct timer *tm, int suppress_error, int flags) {
 }
 
 
+static int abstract_transitions = 0;
 int timer_has_running_children(struct timer *tm) {
     struct word_trie *host = kv_get(tm->kv, "docket:timer");
     struct word_trie *swap = NULL;
     while((swap = trie_loop_children(swap, host))) {
-        struct word_trie *parent = trie_get_path(swap, "parent");
-        if (parent && trie_has_value(parent, cmp_str, (void *)tm->name)) {
-            struct word_trie *index_node = swap;
+        struct word_trie *parent_node = trie_get_path(swap, "parent");
+        if (parent_node && trie_has_value(parent_node, cmp_str, (void *)tm->name)) {
+            struct word_trie *name_node = trie_get_path(swap, "name");
+            struct timer *tmc = get_timer_by_name(tm->kv, trie_get_value(name_node, 0));
 
-            struct timer tmc = {0};
-            tmc.kv = tm->kv;
-            tmc.index_node = index_node;
-            init_timer(&tmc);
-            if(timer_is_running(&tmc)) {
+            if(timer_is_running(tmc)) {
                 return 1;
             }
         }
@@ -621,9 +618,10 @@ int timer_has_running_children(struct timer *tm) {
     return 0;
 }
 
+// should return 0 on failure and 1 on success
 typedef int(*timerfn)(struct timer *timer, int suppress_error, int flags);
 
-void
+int
 timer_children_apply(struct timer *tm, timerfn fn, int suppress_error, int flags) {
     struct word_trie *host = kv_get(tm->kv, "docket:timer");
     struct word_trie *swap = NULL;
@@ -636,9 +634,44 @@ timer_children_apply(struct timer *tm, timerfn fn, int suppress_error, int flags
             tmc.kv = tm->kv;
             tmc.index_node = index_node;
             init_timer(&tmc);
-            fn(&tmc, suppress_error, PARENT_CALL);
+            if(fn(&tmc, suppress_error, PARENT_CALL) == 0) {
+                return 0; 
+            }
         }
     }
+    return 1;
+}
+
+
+
+static int
+abstract_stop(struct timer *tm, int suppress_error, int flags) {
+    abstract_transitions += 1;
+    if(!timer_is_running(tm)) {
+        if (suppress_error) {
+            abstract_transitions += 1;
+            return 0;
+        }
+        die_error("Timer '%s' not running", tm->name);
+    }
+
+    int has_running_children = 0;
+    if((has_running_children = timer_has_running_children(tm))) {
+        if((CHILD_CALL & flags) != 0) {
+            return 0;
+        } else {
+            if(timer_children_apply(tm, timer_stop, 1, PARENT_CALL) == 0) {
+                die_error("unrecognized error");
+            }
+        }
+    }
+    __docket_timer_stop(tm);
+
+    if(has_running_children == 0 && tm->parent) {
+       timer_stop(tm->parent, 1, CHILD_CALL);
+    }
+
+    return 1;
 }
 
 static int
@@ -649,12 +682,13 @@ concrete_stop(struct timer *tm, int suppress_error, int flags) {
         }
         die_error("Timer '%s' not running", tm->name);
     }
-
     if((CHILD_CALL & flags) != 0) {
         return 0;
     } else {
         if(timer_has_running_children(tm)) {
-            timer_children_apply(tm, timer_stop, 1, PARENT_CALL);
+            if (timer_children_apply(tm, timer_stop, 1, PARENT_CALL) == 0) {
+                die_error("unrecognized error");
+            }
         }
     }
 
@@ -669,32 +703,6 @@ concrete_stop(struct timer *tm, int suppress_error, int flags) {
 
 
 
-static int
-abstract_stop(struct timer *tm, int suppress_error, int flags) {
-    if(!timer_is_running(tm)) {
-        if (suppress_error) {
-            return 0;
-        }
-        die_error("Timer '%s' not running", tm->name);
-    }
-
-    int has_running_children = 0;
-    if((has_running_children = timer_has_running_children(tm))) {
-        if((CHILD_CALL & flags) != 0) {
-            return 0;
-        } else {
-            timer_children_apply(tm, timer_stop, 1, PARENT_CALL);
-        }
-    }
-
-    __docket_timer_stop(tm);
-
-    if(has_running_children == 0 && tm->parent) {
-       timer_stop(tm->parent, 1, CHILD_CALL);
-    }   
-
-    return 1;
-}
 
 
 static unsigned long
