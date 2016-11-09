@@ -55,9 +55,10 @@ struct _timer_vmtable concrete_vmt = {
     concrete_stop,
 };
 
+static int abstract_start(struct timer *tm, int suppress_error, int flags);
 static int abstract_stop(struct timer *tm, int suppress_error, int flags);
 struct _timer_vmtable abstract_vmt = {
-    concrete_start,
+    abstract_start,
     abstract_stop,
 };
 
@@ -233,15 +234,53 @@ cmd_list(int argc, const char **argv) {
     return 1;
 }
 
+
+static struct timer *
+get_child_by_name(struct timer *tm, const char *name, int depth) {
+    if (strcmp(tm->name, name) == 0) {
+        return tm;
+    }
+
+
+    struct word_trie *host = kv_get(tm->kv, "docket:timer");
+    struct word_trie *swap = NULL;
+    int child_count = 0;
+    while((swap = trie_loop_children(swap, host))) {
+        child_count++;
+        struct word_trie *parent_node = trie_get_path(swap, "parent");
+        struct word_trie *name_node = trie_get_path(swap, "name");
+        // if child found
+        if (parent_node && trie_has_value(parent_node, cmp_str, (void *)tm->name)) {
+            struct word_trie *index_node = swap;
+
+            struct timer *tmc = get_timer_by_name(tm->kv, trie_get_value(name_node, 0));
+
+            if (depth != 0) {
+                tmc = get_child_by_name(tmc, name, (depth < 0 ? depth : depth - 1));
+                if(tmc) {
+                    return tmc;
+                }
+            }
+        }
+    }
+
+    return NULL;
+}
+
 static int
 timer_set_parent(struct timer *tm, const char *parent_name) {
     if(parent_name == NULL) {
         die_fatal("BUG: parent name is NULL");
     }
     struct timer *found = NULL;
+    if((found = get_child_by_name(tm, parent_name, -1))) {
+        die_error("Cycle found");
+    }
     if((found = get_timer_by_name(tm->kv, parent_name)) == NULL) {
         die_error("No such timer '%s'", parent_name);
     }
+
+
     if (tm->parent) {
         struct word_trie *tmp = trie_get_path(tm->index_node, "parent");
         if (tmp == NULL) {
@@ -498,6 +537,35 @@ concrete_start(struct timer *tm, int suppress_error, int flags) {
         }
         die_error("Timer '%s' already running", tm->name);
     }
+    struct word_trie *timings = trie_get_path(tm->index_node, "timings");
+
+    char max_str[24] = "";
+    int max = trie_get_max_int_child(timings);
+    sprintf(max_str, "%d", max + 1);
+
+    char tbuf[16] = "";
+    snprintf(tbuf, 16, "%lu", time(NULL));
+    trie_insert_by_path(tm->index_node, build_path("timings", max_str, "start"), (void *)strdup(tbuf));
+
+    if(tm->parent) {
+        timer_start(tm->parent, 1, CHILD_CALL);
+    }
+    return 1;
+}
+
+static int
+abstract_start(struct timer *tm, int suppress_error, int flags) {
+    if(timer_is_running(tm)) {
+        if (suppress_error) {
+            return 0;
+        }
+        die_error("Timer '%s' already running", tm->name);
+    }
+
+    if((USER_CALL & flags) != 0) {
+        die_error("Abstract timer can not be manually started");
+    }
+
     struct word_trie *timings = trie_get_path(tm->index_node, "timings");
 
     char max_str[24] = "";
