@@ -41,14 +41,14 @@ trie_get_max_int_child_node(struct word_trie *host) {
 }
 
 
-struct leaf_list *
+struct data_leaf *
 trie_get_value_node(struct word_trie *trie, int index) {
     if (trie == NULL) {
         return NULL;
     }
 
     int i = 0;
-    struct leaf_list *lfls = NULL;
+    struct data_leaf *lfls = NULL;
     TAILQ_FOREACH(lfls, &trie->leafs, leaf) {
         if(i == index) {
             return lfls;
@@ -65,7 +65,7 @@ trie_get_value(struct word_trie *trie, int index) {
     }
 
     int i = 0;
-    struct leaf_list *lfls = NULL;
+    struct data_leaf *lfls = NULL;
     TAILQ_FOREACH(lfls, &trie->leafs, leaf) {
         if(i == index) {
             return lfls->data;

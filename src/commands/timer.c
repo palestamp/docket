@@ -374,7 +374,7 @@ timer_set_parent(struct timer *tm, const char *parent_name) {
         if (tmp == NULL) {
             die_fatal("BUG: trie has no parent but timer has");
         }
-        struct leaf_list *v = trie_get_value_node(tmp, 0);
+        struct data_leaf *v = trie_get_value_node(tmp, 0);
         if (v == NULL) {
             die_fatal("BUG: parent has no value");
         }
@@ -395,7 +395,7 @@ timer_set_type(struct timer *tm, const char *type) {
         if (tmp == NULL) {
             die_fatal("BUG: trie has no type but timer has");
         }
-        struct leaf_list *v = trie_get_value_node(tmp, 0);
+        struct data_leaf *v = trie_get_value_node(tmp, 0);
         if (v == NULL) {
             die_fatal("BUG: type has no value");
         }

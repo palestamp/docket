@@ -192,7 +192,7 @@ void test_insert_by_path(void) {
     if (req) {
         int i = 0;
         char buf[1024] = "";
-        struct leaf_list *entry = NULL;
+        struct data_leaf *entry = NULL;
         TAILQ_FOREACH(entry, &req->leafs, leaf) {
             sprintf(buf, "%s", (char *)entry->data);
             TEST_ASSERT_EQUAL_STRING(buf, comp[i]);

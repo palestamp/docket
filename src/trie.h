@@ -5,8 +5,8 @@
 #include "filter.h"
 #include <sys/queue.h>
 
-struct leaf_list {
-    TAILQ_ENTRY(leaf_list) leaf;
+struct data_leaf {
+    TAILQ_ENTRY(data_leaf) leaf;
     void *data;
 };
 
@@ -18,7 +18,7 @@ struct word_trie {
     const char *word;
     struct word_trie **edges;
 
-    TAILQ_HEAD(,leaf_list) leafs;
+    TAILQ_HEAD(,data_leaf) leafs;
 
     // XXX should be in outer struct
     TAILQ_ENTRY(word_trie) tries;

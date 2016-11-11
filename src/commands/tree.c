@@ -176,7 +176,7 @@ print_title(const struct word_trie *trie_host, struct tree_padding *padding) {
         }
     }
 
-    struct leaf_list *leaf_inner = NULL;
+    struct data_leaf *leaf_inner = NULL;
     TAILQ_FOREACH(leaf_inner, &trie_host->leafs, leaf) {
         struct docket *ddd = ((struct docket *)leaf_inner->data);
         char *title = docket_fix_title(ddd->title);

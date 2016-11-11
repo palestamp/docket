@@ -144,7 +144,7 @@ trie_insert_path(struct word_trie *t, const char *path) {
 
 void trie_insert_by_path(struct word_trie *trie, const char *path, void *data) {
     struct word_trie *target_trie = trie_insert_path(trie, path);
-    struct leaf_list *list = malloc(sizeof(struct leaf_list));
+    struct data_leaf *list = malloc(sizeof(struct data_leaf));
     list->data = data;
     TAILQ_INSERT_TAIL(&target_trie->leafs, list, leaf);
 }
@@ -158,7 +158,7 @@ trie_get_path(struct word_trie *t, const char *path) {
 
 int
 trie_has_value(struct word_trie *trie, cmpfn cmpf, void *value) {
-    struct leaf_list *lfls = NULL;
+    struct data_leaf *lfls = NULL;
     TAILQ_FOREACH(lfls, &trie->leafs, leaf) {
         if(!cmpf(value, lfls->data)) {
             return 1;
@@ -233,7 +233,7 @@ loop_stack_sprint_kv(struct trie_loop *loop) {
     int pos = 0;
     if (trie) {
         char *path_buf = loop_stack_sprint(loop);
-        struct leaf_list *entry = NULL;
+        struct data_leaf *entry = NULL;
         TAILQ_FOREACH(entry, &trie->leafs, leaf) {
             bufcat(&buf, &len, &pos, "%s=%s\n", path_buf, (char *)entry->data);
         }

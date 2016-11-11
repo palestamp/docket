@@ -57,7 +57,7 @@ cmd_list(int argc, const char **argv) {
     TRIE_DATA_LOOP_INIT(&loop, NULL);
 
     while((loop_ptr = trie_loop_branch(host, loop_ptr))) {
-        struct leaf_list *leaf_inner = NULL;
+        struct data_leaf *leaf_inner = NULL;
         struct word_trie *leafed_trie = LOOP_ONSTACK_TRIE(loop_ptr);
 
         TAILQ_FOREACH(leaf_inner, &leafed_trie->leafs, leaf) {
