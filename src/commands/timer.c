@@ -88,13 +88,24 @@ static int timer_stop(struct timer *timer, int suppress_error, int flags);
 // trie-level implementation, always stops timer
 static void __docket_timer_stop(struct timer *tm);
 
+// trie-level implementation, always stops timer
+static void __docket_timer_start(struct timer *tm);
+
 const char *duration_from_ul(char buf[], unsigned long t);
 static struct timer * create_timer(struct kvsrc *kv,
-                                   const char *timer_name,
-                                   const char *parent,
-                                   const char *timer_type,
-                                   int suppress_duplicate);
+        const char *timer_name,
+        const char *parent,
+        const char *timer_type,
+        int suppress_duplicate);
 
+static int timer_set_attr(struct timer *tm, const char *key, const char *value);
+
+int timer_has_running_children(struct timer *tm);
+// should return 0 on failure and 1 on success
+typedef int(*timerfn)(struct timer *timer, int suppress_error, int flags);
+int timer_children_apply(struct timer *tm, timerfn fn, int suppress_error, int flags);
+
+// commands
 static int cmd_start(int argc, const char **argv);
 static int cmd_stop(int argc, const char **argv);
 static int cmd_new(int argc, const char **argv);
@@ -241,101 +252,6 @@ cmd_list(int argc, const char **argv) {
 }
 
 
-static struct timer *
-get_child_by_name(struct timer *tm, const char *name, int depth) {
-    if (strcmp(tm->name, name) == 0) {
-        return tm;
-    }
-
-
-    struct word_trie *host = kv_get(tm->kv, "docket:timer");
-    struct word_trie *swap = NULL;
-    int child_count = 0;
-    while((swap = trie_loop_children(swap, host))) {
-        child_count++;
-        struct word_trie *parent_node = trie_get_path(swap, "parent");
-        // if child found
-        if (parent_node && trie_has_value(parent_node, cmp_str, (void *)tm->name)) {
-            struct word_trie *name_node = trie_get_path(swap, "name");
-
-            struct timer *tmc = get_timer_by_name(tm->kv, trie_get_value(name_node, 0));
-
-            if (depth != 0) {
-                tmc = get_child_by_name(tmc, name, (depth < 0 ? depth : depth - 1));
-                if(tmc) {
-                    return tmc;
-                }
-            }
-        }
-    }
-
-    return NULL;
-}
-
-static int
-timer_set_parent(struct timer *tm, const char *parent_name) {
-    if(parent_name == NULL) {
-        die_fatal("BUG: parent name is NULL");
-    }
-    struct timer *found = NULL;
-    if((found = get_child_by_name(tm, parent_name, -1))) {
-        die_error("Cycle found");
-    }
-    if((found = get_timer_by_name(tm->kv, parent_name)) == NULL) {
-        die_error("No such timer '%s'", parent_name);
-    }
-
-
-    if (tm->parent) {
-        struct word_trie *tmp = trie_get_path(tm->index_node, "parent");
-        if (tmp == NULL) {
-            die_fatal("BUG: trie has no parent but timer has");
-        }
-        struct leaf_list *v = trie_get_value_node(tmp, 0);
-        if (v == NULL) {
-            die_fatal("BUG: parent has no value");
-        }
-        free((char *)v->data);
-        v->data = (void *)strdup(parent_name);
-    } else {
-        trie_insert_by_path(tm->index_node, "parent", (void*)strdup(parent_name));
-    }
-    tm->parent = found;
-    return 1;
-}
-
-static int
-timer_set_type(struct timer *tm, const char *type) {
-    if(tm->type) {
-        struct word_trie *tmp = trie_get_path(tm->index_node, "type");
-        if (tmp == NULL) {
-            die_fatal("BUG: trie has no type but timer has");
-        }
-        struct leaf_list *v = trie_get_value_node(tmp, 0);
-        if (v == NULL) {
-            die_fatal("BUG: type has no value");
-        }
-        free((char *)v->data);
-        v->data = (void *)strdup(type);
-    } else {
-        trie_insert_by_path(tm->index_node, "type", (void*)strdup(type));
-    }
-    timer_bind_methods(tm);
-    return 1;
-}
-
-static int
-timer_set_attr(struct timer *tm, const char *key, const char *value) {
-    if(strcmp(key, "parent") == 0) {
-        timer_set_parent(tm, value);
-    } else if(strcmp(key, "type") == 0) {
-        timer_set_type(tm, value);
-    } else {
-        die_error("Unrecognized timer attribute '%s'", key);
-    }
-    return 1;
-}
-
 static int
 cmd_attr(int argc, const char **argv) {
     // args layout should look like
@@ -409,12 +325,109 @@ cmd_stat(int argc, const char **argv) {
 
 }
 
+
+static struct timer *
+get_child_by_name(struct timer *tm, const char *name, int depth) {
+    if (strcmp(tm->name, name) == 0) {
+        return tm;
+    }
+
+    struct word_trie *host = kv_get(tm->kv, "docket:timer");
+    struct word_trie *swap = NULL;
+    while((swap = trie_loop_children(swap, host))) {
+        struct word_trie *parent_node = trie_get_path(swap, "parent");
+        // if child found
+        if (parent_node && trie_has_value(parent_node, cmp_str, (void *)tm->name)) {
+            struct word_trie *name_node = trie_get_path(swap, "name");
+
+            struct timer *tmc = get_timer_by_name(tm->kv, trie_get_value(name_node, 0));
+
+            if (depth != 0) {
+                tmc = get_child_by_name(tmc, name, (depth < 0 ? depth : depth - 1));
+                if(tmc) {
+                    return tmc;
+                }
+            }
+        }
+    }
+
+    return NULL;
+}
+
+
+static int
+timer_set_parent(struct timer *tm, const char *parent_name) {
+    if(parent_name == NULL) {
+        die_fatal("BUG: parent name is NULL");
+    }
+    struct timer *found = NULL;
+    if((found = get_child_by_name(tm, parent_name, -1))) {
+        die_error("Cycle found");
+    }
+    if((found = get_timer_by_name(tm->kv, parent_name)) == NULL) {
+        die_error("No such timer '%s'", parent_name);
+    }
+
+
+    if (tm->parent) {
+        struct word_trie *tmp = trie_get_path(tm->index_node, "parent");
+        if (tmp == NULL) {
+            die_fatal("BUG: trie has no parent but timer has");
+        }
+        struct leaf_list *v = trie_get_value_node(tmp, 0);
+        if (v == NULL) {
+            die_fatal("BUG: parent has no value");
+        }
+        free((char *)v->data);
+        v->data = (void *)strdup(parent_name);
+    } else {
+        trie_insert_by_path(tm->index_node, "parent", (void*)strdup(parent_name));
+    }
+    tm->parent = found;
+    return 1;
+}
+
+
+static int
+timer_set_type(struct timer *tm, const char *type) {
+    if(tm->type) {
+        struct word_trie *tmp = trie_get_path(tm->index_node, "type");
+        if (tmp == NULL) {
+            die_fatal("BUG: trie has no type but timer has");
+        }
+        struct leaf_list *v = trie_get_value_node(tmp, 0);
+        if (v == NULL) {
+            die_fatal("BUG: type has no value");
+        }
+        free((char *)v->data);
+        v->data = (void *)strdup(type);
+    } else {
+        trie_insert_by_path(tm->index_node, "type", (void*)strdup(type));
+    }
+    timer_bind_methods(tm);
+    return 1;
+}
+
+
+static int
+timer_set_attr(struct timer *tm, const char *key, const char *value) {
+    if(strcmp(key, "parent") == 0) {
+        timer_set_parent(tm, value);
+    } else if(strcmp(key, "type") == 0) {
+        timer_set_type(tm, value);
+    } else {
+        die_error("Unrecognized timer attribute '%s'", key);
+    }
+    return 1;
+}
+
+
 static struct timer *
 create_timer(struct kvsrc *kv,
-             const char *timer_name,
-             const char *parent,
-             const char *timer_type,
-             int suppress_duplicate) {
+        const char *timer_name,
+        const char *parent,
+        const char *timer_type,
+        int suppress_duplicate) {
     struct timer *tm = NULL;
     tm = malloc(sizeof(struct timer));
 
@@ -450,6 +463,7 @@ create_timer(struct kvsrc *kv,
     return tm;
 }
 
+
 static struct timer *
 init_timer(struct timer *tm) {
     tm->name = trie_get_value(trie_get_path(tm->index_node, "name"), 0);
@@ -483,7 +497,6 @@ get_timer_by_name(struct kvsrc *kv, const char *name) {
             return tm;
         }
     }
-
 
     struct trie_loop loop = {0};
     struct trie_loop *loop_ptr = &loop;
@@ -548,18 +561,6 @@ timer_is_running(struct timer *tm) {
     return 1;
 }
 
-static void
-__docket_timer_start(struct timer *tm) {
-    struct word_trie *timings = trie_get_path(tm->index_node, "timings");
-
-    char max_str[24] = "";
-    int max = trie_get_max_int_child(timings);
-    sprintf(max_str, "%d", max + 1);
-
-    char tbuf[16] = "";
-    snprintf(tbuf, 16, "%lu", time(NULL));
-    trie_insert_by_path(tm->index_node, build_path("timings", max_str, "start"), (void *)strdup(tbuf));
-}
 
 static int
 concrete_start(struct timer *tm, int suppress_error, int flags) {
@@ -577,6 +578,7 @@ concrete_start(struct timer *tm, int suppress_error, int flags) {
     }
     return 1;
 }
+
 
 static int
 abstract_start(struct timer *tm, int suppress_error, int flags) {
@@ -600,56 +602,10 @@ abstract_start(struct timer *tm, int suppress_error, int flags) {
 }
 
 
-static int abstract_transitions = 0;
-int timer_has_running_children(struct timer *tm) {
-    struct word_trie *host = kv_get(tm->kv, "docket:timer");
-    struct word_trie *swap = NULL;
-    while((swap = trie_loop_children(swap, host))) {
-        struct word_trie *parent_node = trie_get_path(swap, "parent");
-        if (parent_node && trie_has_value(parent_node, cmp_str, (void *)tm->name)) {
-            struct word_trie *name_node = trie_get_path(swap, "name");
-            struct timer *tmc = get_timer_by_name(tm->kv, trie_get_value(name_node, 0));
-
-            if(timer_is_running(tmc)) {
-                return 1;
-            }
-        }
-    }
-    return 0;
-}
-
-// should return 0 on failure and 1 on success
-typedef int(*timerfn)(struct timer *timer, int suppress_error, int flags);
-
-int
-timer_children_apply(struct timer *tm, timerfn fn, int suppress_error, int flags) {
-    struct word_trie *host = kv_get(tm->kv, "docket:timer");
-    struct word_trie *swap = NULL;
-    while((swap = trie_loop_children(swap, host))) {
-        struct word_trie *parent = trie_get_path(swap, "parent");
-        if (parent && trie_has_value(parent, cmp_str, (void *)tm->name)) {
-            struct word_trie *index_node = swap;
-
-            struct timer tmc = {0};
-            tmc.kv = tm->kv;
-            tmc.index_node = index_node;
-            init_timer(&tmc);
-            if(fn(&tmc, suppress_error, PARENT_CALL) == 0) {
-                return 0; 
-            }
-        }
-    }
-    return 1;
-}
-
-
-
 static int
 abstract_stop(struct timer *tm, int suppress_error, int flags) {
-    abstract_transitions += 1;
     if(!timer_is_running(tm)) {
         if (suppress_error) {
-            abstract_transitions += 1;
             return 0;
         }
         die_error("Timer '%s' not running", tm->name);
@@ -668,11 +624,12 @@ abstract_stop(struct timer *tm, int suppress_error, int flags) {
     __docket_timer_stop(tm);
 
     if(has_running_children == 0 && tm->parent) {
-       timer_stop(tm->parent, 1, CHILD_CALL);
+        timer_stop(tm->parent, 1, CHILD_CALL);
     }
 
     return 1;
 }
+
 
 static int
 concrete_stop(struct timer *tm, int suppress_error, int flags) {
@@ -701,6 +658,48 @@ concrete_stop(struct timer *tm, int suppress_error, int flags) {
     return 1;
 }
 
+
+int
+timer_has_running_children(struct timer *tm) {
+    struct word_trie *host = kv_get(tm->kv, "docket:timer");
+    struct word_trie *swap = NULL;
+    while((swap = trie_loop_children(swap, host))) {
+        struct word_trie *parent_node = trie_get_path(swap, "parent");
+        if (parent_node && trie_has_value(parent_node, cmp_str, (void *)tm->name)) {
+            struct word_trie *name_node = trie_get_path(swap, "name");
+            struct timer *tmc = get_timer_by_name(tm->kv, trie_get_value(name_node, 0));
+
+            if(timer_is_running(tmc)) {
+                return 1;
+            }
+        }
+    }
+    return 0;
+}
+
+
+
+
+int
+timer_children_apply(struct timer *tm, timerfn fn, int suppress_error, int flags) {
+    struct word_trie *host = kv_get(tm->kv, "docket:timer");
+    struct word_trie *swap = NULL;
+    while((swap = trie_loop_children(swap, host))) {
+        struct word_trie *parent = trie_get_path(swap, "parent");
+        if (parent && trie_has_value(parent, cmp_str, (void *)tm->name)) {
+            struct word_trie *index_node = swap;
+
+            struct timer tmc = {0};
+            tmc.kv = tm->kv;
+            tmc.index_node = index_node;
+            init_timer(&tmc);
+            if(fn(&tmc, suppress_error, PARENT_CALL) == 0) {
+                return 0;
+            }
+        }
+    }
+    return 1;
+}
 
 
 
@@ -747,6 +746,21 @@ duration_from_ul(char buf[], unsigned long t) {
     sprintf(buf, "%02d:%02d:%02d", hours, minutes, seconds);
     return buf;
 }
+
+
+static void
+__docket_timer_start(struct timer *tm) {
+    struct word_trie *timings = trie_get_path(tm->index_node, "timings");
+
+    char max_str[24] = "";
+    int max = trie_get_max_int_child(timings);
+    sprintf(max_str, "%d", max + 1);
+
+    char tbuf[16] = "";
+    snprintf(tbuf, 16, "%lu", time(NULL));
+    trie_insert_by_path(tm->index_node, build_path("timings", max_str, "start"), (void *)strdup(tbuf));
+}
+
 
 static void
 __docket_timer_stop(struct timer *tm) {
