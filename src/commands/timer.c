@@ -69,6 +69,7 @@ struct timer {
     enum timer_type type;
     struct kvsrc *kv;
     struct word_trie *index_node;
+    struct word_trie *events;
     const struct _timer_vmtable *vmt;
 
     TAILQ_ENTRY(timer) shadow_chain;
@@ -80,6 +81,11 @@ static struct timer *get_timer_by_name(struct kvsrc *kv, const char *timer_name)
 int timer_is_running(struct timer *tm);
 static unsigned long timer_running_time(struct timer *tm, int mode);
 static void timer_bind_methods(struct timer *timer);
+static void timer_bind_event(struct timer *tm,
+        const char *event_trigger,
+        const char *event_name,
+        const char *obj_name,
+        int save);
 
 // call timer-type defined operations
 static int timer_start(struct timer *timer, int suppress_error, int flags);
@@ -415,6 +421,18 @@ timer_set_attr(struct timer *tm, const char *key, const char *value) {
         timer_set_parent(tm, value);
     } else if(strcmp(key, "type") == 0) {
         timer_set_type(tm, value);
+    } else if(startswith("event", key)) {
+        const char *trigger_start = strchr(key, ':');
+        if (trigger_start != NULL && *(trigger_start + 1) != '\0') {
+            const char *action_start = strchr((trigger_start + 1), ':');
+            if (action_start != NULL && *(action_start + 1) != '\0') {
+                const char *trigger = copy_slice((trigger_start + 1), action_start - (trigger_start + 1));
+                const char *action = copy_slice((action_start + 1), (key + strlen(key)) - (action_start + 1));
+                timer_bind_event(tm, trigger, action, value, 1);
+                return 1;
+            }
+        }
+        die_error("Wrong event syntax");
     } else {
         die_error("Unrecognized timer attribute '%s'", key);
     }
@@ -464,18 +482,77 @@ create_timer(struct kvsrc *kv,
 }
 
 
+static void
+timer_bind_event(struct timer *tm, const char *event_trigger, const char *event_name, const char *obj_name, int save) {
+    if(strcmp(event_trigger, "onstart") != 0 &&
+            strcmp(event_trigger, "onstop") != 0) {
+        die_error("Unrecognized event trigger '%s'", event_trigger);
+    }
+
+    if (strcmp(event_name, "start") != 0 &&
+            strcmp(event_name, "stop") != 0) {
+        die_error("Unrecognized event '%s'", event_name);
+    }
+    if (strcmp(tm->name, obj_name) == 0) {
+        die_error("Event cycle found: %s -> %s(%s)",
+                tm->name, event_name, obj_name);
+    }
+    struct timer *evtimer = get_timer_by_name(tm->kv, obj_name);
+    if(evtimer == NULL) {
+        die_error("Timer '%s' not found", obj_name);
+    }
+
+    // if current timer is parent of eventor - die
+    if(get_child_by_name(tm, obj_name, -1) != NULL) {
+        die_error("Event can not affect children (%s child of %s)",
+                tm->name, obj_name);
+    } else if(get_child_by_name(evtimer, tm->name, -1) != NULL) {
+        die_error("Event can not affect parents (%s parent of %s)",
+                tm->name, obj_name);
+    }
+    char *evdesc = build_path(event_trigger, event_name);
+
+    if (save) {
+        trie_insert_by_path(tm->index_node, build_path("event", evdesc), (void *)evtimer->name);
+    }
+    trie_insert_by_path(tm->events, evdesc, (void *)evtimer);
+}
+
+
+void
+timer_bind_events_node(struct timer *tm, struct word_trie *event_node) {
+    struct word_trie *event_node_child = NULL;
+    while((event_node_child = trie_loop_children(event_node_child, event_node))) {
+
+        struct word_trie *onevent_node = NULL;
+        while((onevent_node = trie_loop_children(onevent_node, event_node_child))) {
+            struct data_leaf *dl = NULL;
+            TAILQ_FOREACH(dl, &onevent_node->leafs, leaf) {
+                timer_bind_event(tm, event_node_child->word, onevent_node->word, (const char *)dl->data, 0);
+            }
+        }
+    }
+}
+
+
 static struct timer *
 init_timer(struct timer *tm) {
+    tm->events = trie_new();
+    if(tm->events == NULL) {
+        die_fatal("Memory allocation failed");
+    }
     tm->name = trie_get_value(trie_get_path(tm->index_node, "name"), 0);
-    tm->parent = NULL;
 
-    const char *type = trie_get_value(trie_get_path(tm->index_node, "type"), 0);
+    // parent start
     const char *parent = trie_get_value(trie_get_path(tm->index_node, "parent"), 0);
-
+    tm->parent = NULL;
     if (parent) {
         tm->parent = get_timer_by_name(tm->kv, parent);
     }
+    // parent end
 
+    // type start
+    const char *type = trie_get_value(trie_get_path(tm->index_node, "type"), 0);
     if (strcmp(type, "concrete") == 0) {
         tm->type = CONCRETE;
     } else if (strcmp(type, "abstract") == 0) {
@@ -483,6 +560,14 @@ init_timer(struct timer *tm) {
     } else {
         die_error("Unknown timer type '%s'", type);
     }
+    // type end
+
+    // events start
+    struct word_trie *events_node = trie_get_path(tm->index_node, "event");
+    if (events_node) {
+        timer_bind_events_node(tm, events_node);
+    }
+    // events end
     timer_bind_methods(tm);
     TAILQ_INSERT_TAIL(&timers_chain, tm, shadow_chain);
     return tm;
@@ -517,14 +602,46 @@ get_timer_by_name(struct kvsrc *kv, const char *name) {
 }
 
 
+void
+trigger_timer_events(struct timer *tm, const char *event_trigger) {
+    if (tm->events) {
+        struct word_trie *event_trigger_node = trie_get_path(tm->events, event_trigger);
+        if (event_trigger_node) {
+            struct word_trie *event_node = NULL;
+            while((event_node = trie_loop_children(event_node, event_trigger_node))){
+                struct timer *st = NULL;
+                struct data_leaf *dl = NULL;
+                int(*tmfn)(struct timer *, int, int) = NULL;
+
+                if(strcmp(event_node->word, "start") == 0) {
+                    tmfn = &timer_start;
+                } else if(strcmp(event_node->word, "stop") == 0) {
+                    tmfn = &timer_stop;
+                } else {
+                    die_fatal("BUG: Error event '%s'", event_node->word);
+                }
+                TAILQ_FOREACH(dl, &event_node->leafs, leaf) {
+                    st = (struct timer *)dl->data;
+                    tmfn(st, 1, USER_CALL);
+                }
+            }
+        }
+    }
+}
+
+
 static int
 timer_start(struct timer *tm, int suppress_error, int flags) {
+    trigger_timer_events(tm, "onstart");
+
     return tm->vmt->start(tm, suppress_error, flags);
 }
 
 
 static int
 timer_stop(struct timer *tm, int suppress_error, int flags) {
+    trigger_timer_events(tm, "onstop");
+
     return tm->vmt->stop(tm, suppress_error, flags);
 }
 
@@ -678,30 +795,23 @@ timer_has_running_children(struct timer *tm) {
 }
 
 
-
-
 int
 timer_children_apply(struct timer *tm, timerfn fn, int suppress_error, int flags) {
     struct word_trie *host = kv_get(tm->kv, "docket:timer");
     struct word_trie *swap = NULL;
     while((swap = trie_loop_children(swap, host))) {
-        struct word_trie *parent = trie_get_path(swap, "parent");
-        if (parent && trie_has_value(parent, cmp_str, (void *)tm->name)) {
-            struct word_trie *index_node = swap;
+        struct word_trie *parent_node = trie_get_path(swap, "parent");
+        if (parent_node && trie_has_value(parent_node, cmp_str, (void *)tm->name)) {
+            struct word_trie *name_node = trie_get_path(swap, "name");
 
-            struct timer tmc = {0};
-            tmc.kv = tm->kv;
-            tmc.index_node = index_node;
-            init_timer(&tmc);
-            if(fn(&tmc, suppress_error, PARENT_CALL) == 0) {
+            struct timer *tmc = get_timer_by_name(tm->kv, trie_get_value(name_node, 0));
+            if(fn(tmc, suppress_error, PARENT_CALL) == 0) {
                 return 0;
             }
         }
     }
     return 1;
 }
-
-
 
 
 static unsigned long

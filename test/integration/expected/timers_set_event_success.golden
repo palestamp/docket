@@ -1,0 +1,29 @@
+docket timer new work --abstract
+docket timer new work_child --parent work
+docket timer new work_child2 --parent work
+docket timer new work_child3 --parent work
+
+docket timer set work_child event:onstart:stop work_child2
+
+docket timer start work_child2
+docket timer stat --status-only
+*               running   
+work            running   
+work_child      stopped   
+work_child2     running   
+work_child3     stopped   
+docket timer start work_child3
+docket timer stat --status-only
+*               running   
+work            running   
+work_child      stopped   
+work_child2     running   
+work_child3     running   
+
+docket timer start work_child
+docket timer stat --status-only
+*               running   
+work            running   
+work_child      running   
+work_child2     stopped   
+work_child3     running   

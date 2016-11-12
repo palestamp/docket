@@ -1,0 +1,7 @@
+docket timer new work --abstract
+docket timer new work_child --parent work
+docket timer new work_child2 --parent work
+docket timer new work_child3 --parent work
+
+docket timer set work_child event:onstart:stop work
+error: Event can not affect parents (work_child parent of work)

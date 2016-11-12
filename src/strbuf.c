@@ -52,7 +52,6 @@ copy_slice(const char *start_ptr, size_t len) {
 }
 
 
-
 char *
 _build_path(int dummy, ...) {
     va_list ch;
@@ -70,4 +69,10 @@ _build_path(int dummy, ...) {
     }
     va_end(ch);
     return out;
+}
+
+
+int
+startswith(const char *prefix, const char *str) {
+    return strncmp(prefix, str, strlen(prefix)) == 0;
 }
