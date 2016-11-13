@@ -1,4 +1,4 @@
-rm ~/.timer
+rm ~/.docket_timer_test
 set -o verbose
 
 docket timer new home

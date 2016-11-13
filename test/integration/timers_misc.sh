@@ -1,4 +1,4 @@
-rm ~/.timer
+rm ~/.docket_timer_test
 set -v
 docket timer new work --abstract
 docket timer new home

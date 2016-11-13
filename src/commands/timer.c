@@ -9,7 +9,7 @@
 #include "report.h"
 
 #ifndef DOCKET_TIMER_STD_PATH
-#define DOCKET_TIMER_STD_PATH "/Users/stas/.timer"
+#error DOCKET_TIMER_STD_PATH must be specified
 #endif
 
 TAILQ_HEAD(,timer) timers_chain;

@@ -34,12 +34,72 @@ Ordinary, configuration file is in $HOME. This option should give even
 more flexibility to construct namespaces. Also it is good for testing purposes.
 
 
-[parts:todo:urgent]
-@@ Possible bug with filtering
+[parts:issue:open]
+@@ Filtering
+<{tag: locally_fixed}>
 While performing recursive filtering we can get sigenv.
 Maybe problem in TAILQ_ENTRY(word_trie) tries - which creates implicit state of the loop,
 so I think that a good idea to separate this stack into loop structure or even in separate
 datastructure. And... this is not true
+
+
+[parts:issue:open]
+@@ Pointer mutation
+<{tag: locally_fixed}>
+Pointer mutate in next function
+```
+int timer_has_running_children(struct timer *tm) {
+    struct word_trie *host = kv_get(tm->kv, "docket:timer");
+    struct word_trie *swap = NULL;
+    while((swap = trie_loop_children(swap, host))) {
+        struct word_trie *parent = trie_get_path(swap, "parent");
+        if (parent && trie_has_value(parent, cmp_str, (void *)tm->name)) {
+            struct word_trie *index_node = swap;
+
+            struct timer tmc = {0};
+            tmc.kv = tm->kv;
+            tmc.index_node = index_node;
+            init_timer(&tmc);
+            if(timer_is_running(&tmc)) {
+                return 1;
+            }
+        }
+    }
+    return 0;
+}
+```
+
+when it called from
+```
+static int
+abstract_stop(struct timer *tm, int suppress_error, int flags) {
+    if(!timer_is_running(tm)) {
+        if (suppress_error) {
+            return 0;
+        }
+        die_error("Timer '%s' not running", tm->name);
+    }
+
+    int has_running_children = 0;
+    if((has_running_children = timer_has_running_children(tm))) {
+        if((CHILD_CALL & flags) != 0) {
+            return 0;
+        } else {
+            timer_children_apply(tm, timer_stop, 1, PARENT_CALL);
+        }
+    }
+
+    __docket_timer_stop(tm);
+
+    if(has_running_children == 0 && tm->parent) {
+       timer_stop(tm->parent, 1, CHILD_CALL);
+    }
+
+    return 1;
+}
+```
+actualy the address of tm in `abstract_stop` changes after `timer_has_running_children`
+call
 
 
 [parts:todo:config]
@@ -51,21 +111,13 @@ simple way for user to restrict one or several files to process
 Trie patching:
     Basically namespaces will become source host nodes when talking about tries.
 
-Variants:
-    Bconf-like: (done)
-        docket:settings:sources:0:path=/Users/stas/self/docket/local.docket
-        docket:settings:sources:0:name=dev
+docket:settings:sources:0:path=/Users/stas/self/docket/local.docket
+docket:settings:sources:0:name=dev
 
-    Flat:
-        docket:settings:sources:dev=/Users/stas/self/docket/local.docket
+duplicate source: "Source file already exists under namespace 'blabla'"
+duplicate name  : "Namespace already owned by source '/Users/blabla/bla.docket'"
+config error    : "Config error in '/Users/stas/.docket'"
 
-Errors:
-    duplicate source: "Source file already exists under namespace 'blabla'"
-    duplicate name  : "Namespace already owned by source '/Users/blabla/bla.docket'"
-    config error    : "Config error in '/Users/stas/.docket'"
-
-Flag:
-    namespace=<name>
 
 
 [parts:done:paths:globbing]
@@ -139,21 +191,15 @@ Special meta section in the top of .owl file
   timers we should stop. When this timer stops interrupted timers remain.
 * kill - defined from killer side since we can know inplace which timers we should kill.
 
-[parts:todo:timers]
-@@ Stack support
-If timer has stack support that means it can be layed on stack of timers which is internal
-setting for hosted timers: when hosted timer starts it is pushed onto host timer, then it
-can be poped/stopped manually, but if host timer exits with hosted timers on it - every
-timer is poped out from it in push reverse order.
 
 [parts:todo:timers:storage]
 @@ Meta
-timer.{timer_id}.name=<timer name /*defined by user*/j>
-timer.{timer_id}.behaviour=<manual,hosted,dependent>
-timer.{timer_id}.stack=<true,false> - look at <{rel: localex:parts:todo:timers:@@StackSupport}>
+timer:{timer_id}:name={timer_name}
+timer:{timer_id}:type={abstract|concrete}
+timer:{timer_id}:parent={timer_name}
+timer:{timer_id}:event:start:kill={timer_name}
+timer:{timer_id}:event:stop:start={timer_name}
 
-[parts:todo:timers:storage]
-@@ Chuncks
 
 [parts:todo:shelve]
 @@ Docket subtree copy

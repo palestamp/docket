@@ -1,5 +1,5 @@
 docket timer new work
-grep -Ev 'timing' ~/.timer
+grep -Ev 'timing' ~/.docket_timer_test
 docket:timer:1:name=*
 docket:timer:1:type=abstract
 docket:timer:2:name=work
@@ -9,7 +9,7 @@ docket timer new work_child --parent work
 docket timer new work_child_child --parent work_child
 docket timer set work parent work_child_child
 error: Cycle found
-grep -Ev 'timing' ~/.timer
+grep -Ev 'timing' ~/.docket_timer_test
 docket:timer:1:name=*
 docket:timer:1:type=abstract
 docket:timer:2:name=work
