@@ -1,0 +1,42 @@
+test3
++----development
+|    * @@ Order (175)
+|    
++----parts
+|    +----paths
+|    |    * @@ Overview (140)
+|    |    * @@ Details (145)
+|    |    
+|    +----todo
+|    |    +---config
+|    |    |   * @@ use-config flag (153)
+|    |    |   * @@ Namespaces (589)
+|    |    |   
+|    |    +---layouts
+|    |    |   * @@ Overview (418)
+|    |    |   
+|    |    +---timers
+|    |    |   * @@ Overview (860)
+|    |    |   * @@ Timer attributes (359)
+|    |    |   
+|    |    |   +-----storage
+|    |    |         * @@ Meta (210)
+|    |    |         
+|    |    +---shelve
+|    |        * @@ Docket subtree copy (299)
+|    |        
+|    +----issue
+|    |    +----open
+|    |         * @@ Filtering (301)
+|    |         * @@ Pointer mutation (1470)
+|    |         
+|    +----done
+|         +---paths
+|             +----globbing
+|                  * @@ Overview (308)
+|                  
++----tech
+     +---parts
+         +----body
+              * @@ Parse on request (40)
+              

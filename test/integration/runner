@@ -5,7 +5,7 @@ BASE_DIR='../../test'
 
 exit_status=0; 
 
-for script in $BASE_DIR/integration/*sh; do
+for script in $BASE_DIR/integration/$1*sh; do
     base=$(basename "$script")
     ./$script > "$BASE_DIR/integration/out/${base/sh/out}" 2>&1
 

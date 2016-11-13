@@ -6,5 +6,6 @@ add_test(interactive_tree "python" "../../test/test.py")
 
 find_program (BASH_PROGRAM bash)
 if(BASH_PROGRAM)
-    add_test(integration ${BASH_PROGRAM} ${CMAKE_CURRENT_SOURCE_DIR}/integration/runner)
+    add_test(timers ${BASH_PROGRAM} ${CMAKE_CURRENT_SOURCE_DIR}/integration/runner timers)
+    add_test(tree ${BASH_PROGRAM} ${CMAKE_CURRENT_SOURCE_DIR}/integration/runner tree)
 endif (BASH_PROGRAM)
