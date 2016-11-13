@@ -822,7 +822,9 @@ timer_children_apply(struct timer *tm, timerfn fn, int suppress_error, int flags
 
             struct timer *tmc = get_timer_by_name(tm->kv, trie_get_value(name_node, 0));
             if(fn(tmc, suppress_error, PARENT_CALL) == 0) {
-                return 0;
+                if (suppress_error == 0) {
+                    return 0;
+                }
             }
         }
     }

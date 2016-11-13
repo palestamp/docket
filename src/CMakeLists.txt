@@ -30,7 +30,9 @@ add_executable(docket
 
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -O0 -ggdb")
 
-if(FLAVOUR STREQUAL test)
+if(FLAVOUR STREQUAL prod)
+    target_compile_definitions(docket PRIVATE DOCKET_TIMER_STD_PATH="$ENV{HOME}/.docket_timer")
+elseif(FLAVOUR STREQUAL test)
     target_compile_definitions(docket PRIVATE DOCKET_TIMER_STD_PATH="$ENV{HOME}/.docket_timer_test")
 endif()
 

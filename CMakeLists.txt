@@ -15,7 +15,6 @@ add_subdirectory(src)
 
 
 if(FLAVOUR STREQUAL prod)
-    add_definitions(-DDOCKET_TIMER_STD_PATH $ENV{HOME}/.docket_timer)
 elseif(FLAVOUR STREQUAL test)
     include(CTest)
     add_subdirectory(external)
