@@ -75,6 +75,14 @@ struct timer {
     TAILQ_ENTRY(timer) shadow_chain;
 };
 
+static const char *
+to_ics_time(unsigned long ts) {
+    struct tm *info;
+    info = localtime((const time_t *)&ts);
+    char buffer[80] = "";
+    strftime(buffer,80,"%Y%m%dT%H%M%SZ", info);
+    return strdup(buffer);
+}
 
 static struct timer *init_timer(struct timer *tm);
 static struct timer *get_timer_by_name(struct kvsrc *kv, const char *timer_name);
@@ -194,6 +202,7 @@ cmd_start(int argc, const char **argv) {
     kv = kv_load(DOCKET_TIMER_STD_PATH, kv_parse);
 
     struct timer *tm = NULL;
+
     if((tm = get_timer_by_name(kv, argv[0])) == NULL) {
         die_error("No such timer '%s'", argv[0]);
     }
@@ -497,6 +506,7 @@ timer_bind_event(struct timer *tm, const char *event_trigger, const char *event_
         die_error("Event cycle found: %s -> %s(%s)",
                 tm->name, event_name, obj_name);
     }
+
     struct timer *evtimer = get_timer_by_name(tm->kv, obj_name);
     if(evtimer == NULL) {
         die_error("Timer '%s' not found", obj_name);
@@ -562,14 +572,18 @@ init_timer(struct timer *tm) {
     }
     // type end
 
+    timer_bind_methods(tm);
+    TAILQ_INSERT_TAIL(&timers_chain, tm, shadow_chain);
+
+    // Bind events after timer caching to prevent infinite recursion of timer
+    // initializations
+
     // events start
     struct word_trie *events_node = trie_get_path(tm->index_node, "event");
     if (events_node) {
         timer_bind_events_node(tm, events_node);
     }
     // events end
-    timer_bind_methods(tm);
-    TAILQ_INSERT_TAIL(&timers_chain, tm, shadow_chain);
     return tm;
 }
 
@@ -632,17 +646,19 @@ trigger_timer_events(struct timer *tm, const char *event_trigger) {
 
 static int
 timer_start(struct timer *tm, int suppress_error, int flags) {
-    trigger_timer_events(tm, "onstart");
 
-    return tm->vmt->start(tm, suppress_error, flags);
+    int rc =  tm->vmt->start(tm, suppress_error, flags);
+    trigger_timer_events(tm, "onstart");
+    return rc;
 }
 
 
 static int
 timer_stop(struct timer *tm, int suppress_error, int flags) {
-    trigger_timer_events(tm, "onstop");
 
-    return tm->vmt->stop(tm, suppress_error, flags);
+    int rc =  tm->vmt->stop(tm, suppress_error, flags);
+    trigger_timer_events(tm, "onstop");
+    return rc;
 }
 
 
@@ -824,13 +840,13 @@ timer_running_time(struct timer *tm, int mode) {
             int left = 0, right = 0;
             struct word_trie *start = trie_get_path(chunk, "start");
             struct word_trie *stop = trie_get_path(chunk, "stop");
-
             left = strtol(trie_get_value(start, 0), NULL, 10);
             if(stop) {
                 right = strtol(trie_get_value(stop, 0), NULL, 10);
             } else {
                 right = time(NULL);
             }
+
             sum += right - left;
         }
         return sum;
