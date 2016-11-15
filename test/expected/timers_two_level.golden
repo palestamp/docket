@@ -1,0 +1,33 @@
+docket timer new home
+docket timer new work --abstract
+docket timer new coding --parent work
+docket timer new robocop --parent coding
+docket timer new projects --parent home --abstract
+docket timer new docket --parent projects
+docket timer new hf --parent projects
+
+docket timer set home event:onstart:stop work
+docket timer set work event:onstart:stop home
+
+docket timer start robocop
+docket timer stat --status-only
+*               running   
+home            stopped   
+work            running   
+coding          running   
+robocop         running   
+projects        stopped   
+docket          stopped   
+hf              stopped   
+
+docket timer start hf
+docket timer stat --status-only
+*               running   
+home            running   
+work            stopped   
+coding          stopped   
+robocop         stopped   
+projects        running   
+docket          stopped   
+hf              running   
+
