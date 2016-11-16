@@ -1,5 +1,6 @@
 #include <stdlib.h>
 #include <time.h>
+#include <limits.h>
 
 #include "command.h"
 #include "options.h"
@@ -87,7 +88,7 @@ to_ics_time(unsigned long ts) {
 static struct timer *init_timer(struct timer *tm);
 static struct timer *get_timer_by_name(struct kvsrc *kv, const char *timer_name);
 int timer_is_running(struct timer *tm);
-static unsigned long timer_running_time(struct timer *tm, int mode);
+static unsigned long timer_running_time(struct timer *tm, int from, int to);
 static void timer_bind_methods(struct timer *timer);
 static void timer_bind_event(struct timer *tm,
         const char *event_trigger,
@@ -118,6 +119,7 @@ int timer_has_running_children(struct timer *tm);
 // should return 0 on failure and 1 on success
 typedef int(*timerfn)(struct timer *timer, int suppress_error, int flags);
 int timer_children_apply(struct timer *tm, timerfn fn, int suppress_error, int flags);
+struct word_trie * timer_get_last_period(struct timer *tm);
 
 // commands
 static int cmd_start(int argc, const char **argv);
@@ -237,15 +239,35 @@ cmd_new(int argc, const char **argv) {
 
 static int
 cmd_start(int argc, const char **argv) {
-    if (argc < 1) return 0;
+    char *help = NULL;
+    struct option timer_new_options[] = {
+        {"h", "help", {.required = 0, .has_args = 0}, &help},
+        {NULL, NULL, {0}, NULL},
+    };
+
+    if (argc < 1) {
+        cmd_timer_new_usage();
+    };
+
+    const char *timer_name = argv[0];
+    argc--, argv++;
+    if (strcmp(timer_name, "-h") == 0 || strcmp(timer_name, "--help") == 0) {
+        cmd_timer_new_usage();
+    }
+
+    char err[1024] = "";
+    int rv = options_populate(err, &argc, &argv, timer_new_options);
+    if (rv != 0) {
+        die_error("%s", err);
+    }
 
     struct kvsrc *kv = NULL;
     kv = kv_load(DOCKET_TIMER_STD_PATH, kv_parse);
 
     struct timer *tm = NULL;
 
-    if((tm = get_timer_by_name(kv, argv[0])) == NULL) {
-        die_error("No such timer '%s'", argv[0]);
+    if((tm = get_timer_by_name(kv, timer_name)) == NULL) {
+        die_error("No such timer '%s'", timer_name);
     }
 
     int rc = timer_start(tm, 0, USER_CALL);
@@ -299,7 +321,7 @@ cmd_list(int argc, const char **argv) {
             fprintf(stdout, "%-15s %-10s %-10s\n",
                     tm.name,
                     "running",
-                    duration_from_ul(buf, timer_running_time(&tm, TR_CURRENT)));
+                    duration_from_ul(buf, timer_running_time(&tm, -1, -1)));
         } else {
             fprintf(stdout, "%-15s %-10s\n", tm.name, "stopped");
         }
@@ -341,11 +363,44 @@ cmd_attr(int argc, const char **argv) {
 }
 
 
+static void
+cmd_timer_stat_usage() {
+    const char *usage = \
+        "docket timer stat [--help] [--status-only] [--running | --today \n" \
+        "                  | --yesterday | [--from <datetime>] [--to <datetime>]] \n" \
+        "\n" \
+        "    -s, --status-only   Do not show timings.\n"  \
+        "\n" \
+        "    -r, --running       Show timings for latest period of running timers.\n" \
+        "\n" \
+        "    -d, --today         Show accumulated timings for today.\n" \
+        "\n" \
+        "    -y, --yesterday     Show accumulated timings for yesterday.\n" \
+        "\n" \
+        "    -f, --from          Set range start for timings to be showed in Y-m-d H:M format.\n" \
+        "\n" \
+        "    -t, --to            Set range stop for timings to be showed in Y-m-d H:M format.\n";
+    usage_and_die("%s", usage);
+}
+
+
 static int
 cmd_stat(int argc, const char **argv) {
-    char *status_only = NULL;
+    char *arg_status_only = NULL;
+    char *arg_running = NULL;
+    char *arg_today = NULL;
+    char *arg_yesterday = NULL;
+    char *arg_from = NULL;
+    char *arg_to = NULL;
+    char *arg_help = NULL;
     struct option timer_stat_options[] = {
-        {"s", "status-only", {.required = 0, .has_args = 0}, &status_only},
+        {"s", "status-only", {.required = 0, .has_args = 0}, &arg_status_only},
+        {"r", "running", {.required = 0, .has_args = 0}, &arg_running},
+        {"d", "today", {.required = 0, .has_args = 0}, &arg_today},
+        {"y", "yesterday", {.required = 0, .has_args = 0}, &arg_yesterday},
+        {"f", "from", {.required = 0, .has_args = 1}, &arg_from},
+        {"t", "to", {.required = 0, .has_args = 1}, &arg_to},
+        {"h", "help", {.required = 0, .has_args = 0}, &arg_help},
         {NULL, NULL, {0}, NULL},
     };
 
@@ -355,25 +410,57 @@ cmd_stat(int argc, const char **argv) {
         die_error("%s", err);
     }
 
+    if(arg_help) {
+        cmd_timer_stat_usage();
+    }
+
     struct kvsrc *kv = NULL;
     kv = kv_load(DOCKET_TIMER_STD_PATH, kv_parse);
 
     struct word_trie *root = kv_get(kv, "docket:timer");
     struct word_trie *index_node = NULL;
-    struct timer tm = {0};
+    struct timer ltm = {0};
+
+    int start_range = 0;
+    int stop_range = INT_MAX;
+
+    time_t now = time(NULL);
+
+    if (arg_running) {
+        start_range = stop_range = -1;
+    } else if (arg_today) {
+        start_range = (now / 86400) * 86400;
+        stop_range = start_range + 86400;
+    } else if(arg_yesterday) {
+        stop_range = (now / 86400) * 86400;
+        start_range = stop_range - 86400;
+    } else if (arg_from || arg_to) {
+        if (arg_from) {
+            struct tm t = {0};
+            strptime(arg_from, "%Y-%m-%d %H:%M", &t);
+            start_range = mktime(&t);
+        }
+        if (arg_to) {
+            struct tm t = {0};
+            strptime(arg_to, "%Y-%m-%d %H:%M", &t);
+            stop_range = mktime(&t);
+        }
+    }
 
     char buf[24];
     while((index_node = trie_loop_children(index_node, root))) {
-        tm.kv = kv;
-        tm.index_node = index_node;
-        init_timer(&tm);
+        ltm.kv = kv;
+        ltm.index_node = index_node;
+        init_timer(&ltm);
 
         memset(buf, 0, 24);
+        int tmr = timer_is_running(&ltm);
+
         fprintf(stdout, "%-15s %-10s",
-                tm.name,
-                (timer_is_running(&tm) ? "running" : "stopped"));
-        if(status_only == NULL) {
-            fprintf(stdout, " %-10s", duration_from_ul(buf, timer_running_time(&tm, TR_ALL)));
+                ltm.name,
+                (tmr ? "running" : "stopped"));
+        if(arg_status_only == NULL && tmr) {
+            fprintf(stdout, " %-10s", duration_from_ul(buf, timer_running_time(&ltm, start_range, stop_range)));
         }
         fputc('\n', stdout);
     }
@@ -718,11 +805,15 @@ timer_bind_methods(struct timer *tm) {
     }
 }
 
+struct word_trie *
+timer_get_last_period(struct timer *tm) {
+    struct word_trie *timings = trie_get_path(tm->index_node, "timings");
+    return trie_get_max_int_child_node(timings);
+}
 
 int
 timer_is_running(struct timer *tm) {
-    struct word_trie *timings = trie_get_path(tm->index_node, "timings");
-    struct word_trie *max_node = trie_get_max_int_child_node(timings);
+    struct word_trie *max_node = timer_get_last_period(tm);
 
     if(trie_get_path(max_node, "start") == NULL) {
         return 0;
@@ -874,36 +965,45 @@ timer_children_apply(struct timer *tm, timerfn fn, int suppress_error, int flags
 
 
 static unsigned long
-timer_running_time(struct timer *tm, int mode) {
-    if ((mode & TR_ALL) != 0) {
-        struct word_trie *timings = trie_get_path(tm->index_node, "timings");
-        struct word_trie *chunk = NULL;
-        unsigned long sum = 0;
-        while((chunk = trie_loop_children(chunk, timings))) {
-            int left = 0, right = 0;
-            struct word_trie *start = trie_get_path(chunk, "start");
-            struct word_trie *stop = trie_get_path(chunk, "stop");
-            left = strtol(trie_get_value(start, 0), NULL, 10);
-            if(stop) {
-                right = strtol(trie_get_value(stop, 0), NULL, 10);
-            } else {
-                right = time(NULL);
-            }
-
-            sum += right - left;
-        }
-        return sum;
-    } else if ((mode & TR_CURRENT) != 0 && timer_is_running(tm)) {
-        struct word_trie *timing = trie_get_max_int_child_node(
-                trie_get_path(tm->index_node, "timings"));
-        if (timing) {
+timer_running_time(struct timer *tm, int from, int to) {
+    // if last period requested
+    if (from == -1 || to == -1) {
+        if(timer_is_running(tm)) {
+            struct word_trie *timing = timer_get_last_period(tm);
             struct word_trie *start = trie_get_path(timing, "start");
             if (start) {
                 return time(NULL) - strtol(trie_get_value(start, 0), NULL, 10);
             }
         }
+        return 0;
     }
-    return 0;
+
+    unsigned long sum = 0;
+    struct word_trie *timings = trie_get_path(tm->index_node, "timings");
+    struct word_trie *chunk = NULL;
+
+    while((chunk = trie_loop_children(chunk, timings))) {
+        int left = 0, right = 0;
+
+        // check if start time in requested range
+        struct word_trie *start_interval = trie_get_path(chunk, "start");
+        left = strtol(trie_get_value(start_interval, 0), NULL, 10);
+        if (left < from || left > to) {
+            continue;
+        }
+
+        struct word_trie *stop_interval = trie_get_path(chunk, "stop");
+
+        if(stop_interval) {
+            right = strtol(trie_get_value(stop_interval, 0), NULL, 10);
+        } else {
+            // timer still running
+            right = time(NULL);
+        }
+
+        sum += right - left;
+    }
+    return sum;
 }
 
 
@@ -933,9 +1033,11 @@ __docket_timer_start(struct timer *tm) {
 
 static void
 __docket_timer_stop(struct timer *tm) {
-    struct word_trie *timings = trie_get_path(tm->index_node, "timings");
-
-    const char *max_str = trie_get_max_int_child_node(timings)->word;
+    struct word_trie *last_timing = timer_get_last_period(tm);
+    if (last_timing == NULL) {
+        die_fatal("BUG: no timing while stopping timer");
+    }
+    const char *max_str = last_timing->word;
     char tbuf[16] = "";
     snprintf(tbuf, 16, "%lu", time(NULL));
     trie_insert_by_path(tm->index_node, build_path("timings", max_str, "stop"), (void *)strdup(tbuf));
