@@ -239,9 +239,10 @@ cmd_timer_start_usage() {
 
 static int
 cmd_start(int argc, const char **argv) {
-    char *help = NULL;
+    char *arg_help = NULL;
+    char *arg_message = NULL;
     struct option timer_new_options[] = {
-        {"h", "help", {.required = 0, .has_args = 0}, &help},
+        {"m", "message", {.required = 0, .has_args = 1}, &arg_message},
         {NULL, NULL, {0}, NULL},
     };
 
@@ -273,6 +274,11 @@ cmd_start(int argc, const char **argv) {
     int rc = timer_start(tm, 0, USER_CALL);
     if (rc != 1) {
         return 0;
+    }
+
+    if (arg_message) {
+        struct word_trie *timings = timer_get_last_period(tm);
+        trie_insert_by_path(timings, "message", (void *)arg_message);
     }
 
     kv_sync(kv);
@@ -447,9 +453,11 @@ cmd_stat(int argc, const char **argv) {
                 ltm.name,
                 (tmr ? "running" : "stopped"));
 
-        if(arg_status_only == NULL || tmr) {
-            fprintf(stdout, " %-10s", duration_from_ul(buf, timer_running_time(&ltm, start_range, stop_range)));
+        if(arg_status_only != NULL) {
+            fputc('\n', stdout);
+            continue;
         }
+        fprintf(stdout, " %-10s", duration_from_ul(buf, timer_running_time(&ltm, start_range, stop_range)));
         fputc('\n', stdout);
     }
     return 1;
@@ -1008,27 +1016,33 @@ duration_from_ul(char buf[], unsigned long t) {
 
 static void
 __docket_timer_start(struct timer *tm) {
-    struct word_trie *timings = trie_get_path(tm->index_node, "timings");
+    // sanity check - should be performed always
+    if(!timer_is_running(tm)) {
+        struct word_trie *timings = trie_get_path(tm->index_node, "timings");
 
-    char max_str[24] = "";
-    int max = trie_get_max_int_child(timings);
-    sprintf(max_str, "%d", max + 1);
+        char max_str[24] = "";
+        int max = trie_get_max_int_child(timings);
+        sprintf(max_str, "%d", max + 1);
 
-    char tbuf[16] = "";
-    snprintf(tbuf, 16, "%lu", time(NULL));
-    trie_insert_by_path(tm->index_node, build_path("timings", max_str, "start"), (void *)strdup(tbuf));
+        char tbuf[16] = "";
+        snprintf(tbuf, 16, "%lu", time(NULL));
+        trie_insert_by_path(tm->index_node, build_path("timings", max_str, "start"), (void *)strdup(tbuf));
+    }
 }
 
 
 static void
 __docket_timer_stop(struct timer *tm) {
-    struct word_trie *last_timing = timer_get_last_period(tm);
-    if (last_timing == NULL) {
-        die_fatal("BUG: no timing while stopping timer");
+    // sanity check - should be performed always
+    if(timer_is_running(tm)) {
+        struct word_trie *last_timing = timer_get_last_period(tm);
+        if (last_timing == NULL) {
+            die_fatal("BUG: no timing while stopping timer");
+        }
+        const char *max_str = last_timing->word;
+        char tbuf[16] = "";
+        snprintf(tbuf, 16, "%lu", time(NULL));
+        trie_insert_by_path(tm->index_node, build_path("timings", max_str, "stop"), (void *)strdup(tbuf));
     }
-    const char *max_str = last_timing->word;
-    char tbuf[16] = "";
-    snprintf(tbuf, 16, "%lu", time(NULL));
-    trie_insert_by_path(tm->index_node, build_path("timings", max_str, "stop"), (void *)strdup(tbuf));
 }
 
