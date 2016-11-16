@@ -125,7 +125,6 @@ struct word_trie * timer_get_last_period(struct timer *tm);
 static int cmd_start(int argc, const char **argv);
 static int cmd_stop(int argc, const char **argv);
 static int cmd_new(int argc, const char **argv);
-static int cmd_list(int argc, const char **argv);
 static int cmd_stat(int argc, const char **argv);
 static int cmd_attr(int argc, const char **argv);
 
@@ -134,7 +133,6 @@ static const struct command commands[] = {
     {"new", cmd_new},
     {"start", cmd_start},
     {"stop", cmd_stop},
-    {"list", cmd_list},
     {"stat", cmd_stat},
     {"set", cmd_attr},
     {NULL, NULL},
@@ -151,7 +149,6 @@ cmd_timer_usage() {
         "    start      start timer\n" \
         "    stop       stop timer\n" \
         "    set        set timer attributes\n" \
-        "    list       list current timer ranges\n" \
         "    stat       show timer statistics\n"; \
 
     usage_and_die("%s", usage);
@@ -298,34 +295,6 @@ cmd_stop(int argc, const char **argv) {
     }
 
     kv_sync(kv);
-    return 1;
-}
-
-
-static int
-cmd_list(int argc, const char **argv) {
-    struct kvsrc *kv = kv_load(DOCKET_TIMER_STD_PATH, kv_parse);
-
-    struct word_trie *root = kv_get(kv, "docket:timer");
-    struct word_trie *index_node = NULL;
-    struct timer tm = {0};
-
-    char buf[24];
-    while((index_node = trie_loop_children(index_node, root))) {
-        tm.kv = kv;
-        tm.index_node = index_node;
-        init_timer(&tm);
-
-        memset(buf, 0, 24);
-        if (timer_is_running(&tm)) {
-            fprintf(stdout, "%-15s %-10s %-10s\n",
-                    tm.name,
-                    "running",
-                    duration_from_ul(buf, timer_running_time(&tm, -1, -1)));
-        } else {
-            fprintf(stdout, "%-15s %-10s\n", tm.name, "stopped");
-        }
-    }
     return 1;
 }
 
