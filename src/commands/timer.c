@@ -175,15 +175,16 @@ cmd_timer_new_usage() {
     const char *usage = \
         "docket timer new <name> [--help] [--abstract] [--parent <timer>]\n" \
         "\n" \
-        "    -a, --abstract      Create timer that can not be started in common way.\n" \
-        "                        It can be "
-        "                        By default timer is concrete.\n" 
-        "    -p, --parent              \n" \
-        "    stop       stop timer\n" \
-        "    set        set timer attributes\n" \
-        "    list       list current timer ranges\n" \
-        "    stat       show timer statistics\n"; \
-
+        "    -a, --abstract      Create timer that can not be started in common way.\n"  \
+        "                        Abstract will run if any of its children is running.\n" \
+        "                        If abstract timer manually stopped - all its children\n" \
+        "                        also will be stopped.\n" \
+        "                        Unlike concrete timers, abstract timer stops with last running child timer.\n" \
+        "                        By default timer is concrete.\n" \
+        "\n\n" \
+        "    -p, --parent        Set parent to new timer.\n" \
+        "                        Parent timer always runs if any of its child is running.\n" \
+        "                        Bunch of children timers can be stopped by stopping parent timer.\n";
     usage_and_die("%s", usage);
 }
 
@@ -205,6 +206,9 @@ cmd_new(int argc, const char **argv) {
 
     const char *timer_name = argv[0];
     argc--, argv++;
+    if (strcmp(timer_name, "-h") == 0 || strcmp(timer_name, "--help") == 0) {
+        cmd_timer_new_usage();
+    }
 
     char err[1024] = "";
     int rv = options_populate(err, &argc, &argv, timer_new_options);
@@ -212,9 +216,6 @@ cmd_new(int argc, const char **argv) {
         die_error("%s", err);
     }
 
-    if (help) {
-        cmd_timer_new_usage();
-    }
 
     struct kvsrc *kv = NULL;
     kv = kv_load(DOCKET_TIMER_STD_PATH, kv_parse);
