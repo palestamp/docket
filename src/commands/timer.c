@@ -29,12 +29,6 @@ enum timer_type {
 };
 
 
-enum timer_acc_mode {
-    TR_ALL = 1 << 0,
-    TR_CURRENT = 1 << 1,
-};
-
-
 enum timer_call_flag {
     USER_CALL =   1 << 0,
     CHILD_CALL =  1 << 1,
@@ -151,7 +145,7 @@ cmd_timer_usage() {
         "    set        set timer attributes\n" \
         "    stat       show timer statistics\n"; \
 
-    usage_and_die("%s", usage);
+        usage_and_die("%s", usage);
 }
 
 /* Entry point */
@@ -168,6 +162,7 @@ cmd_timer(int argc, const char **argv) {
     }
     return 1;
 }
+
 
 static void
 cmd_timer_new_usage() {
@@ -186,6 +181,7 @@ cmd_timer_new_usage() {
         "                        Bunch of children timers can be stopped by stopping parent timer.\n";
     usage_and_die("%s", usage);
 }
+
 
 static int
 cmd_new(int argc, const char **argv) {
@@ -215,9 +211,7 @@ cmd_new(int argc, const char **argv) {
         die_error("%s", err);
     }
 
-
-    struct kvsrc *kv = NULL;
-    kv = kv_load(DOCKET_TIMER_STD_PATH, kv_parse);
+    struct kvsrc *kv = kv_load(DOCKET_TIMER_STD_PATH, kv_parse);
     // root timer
     create_timer(kv,
             "*",        /* name   */
@@ -229,8 +223,17 @@ cmd_new(int argc, const char **argv) {
             parent,
             (abstract != NULL ? "abstract" : "concrete"),
             0);
+
     kv_sync(kv);
     return 1;
+}
+
+
+static void
+cmd_timer_start_usage() {
+    const char *usage = \
+        "docket timer start <name> - Starts timer.\n";
+    usage_and_die("%s", usage);
 }
 
 
@@ -243,13 +246,13 @@ cmd_start(int argc, const char **argv) {
     };
 
     if (argc < 1) {
-        cmd_timer_new_usage();
+        cmd_timer_start_usage();
     };
 
     const char *timer_name = argv[0];
     argc--, argv++;
     if (strcmp(timer_name, "-h") == 0 || strcmp(timer_name, "--help") == 0) {
-        cmd_timer_new_usage();
+        cmd_timer_start_usage();
     }
 
     char err[1024] = "";
@@ -277,16 +280,31 @@ cmd_start(int argc, const char **argv) {
 }
 
 
+static void
+cmd_timer_stop_usage() {
+    const char *usage = \
+        "docket timer stop <name> - Stops timer.\n";
+    usage_and_die("%s", usage);
+}
+
+
 static int
 cmd_stop(int argc, const char **argv) {
-    if (argc < 1) return 0;
+    if (argc < 1) {
+        cmd_timer_stop_usage();
+    }
+    const char *timer_name = argv[0];
 
     struct kvsrc *kv = NULL;
     kv = kv_load(DOCKET_TIMER_STD_PATH, kv_parse);
 
+    if (strcmp(timer_name, "-h") == 0 || strcmp(timer_name, "--help") == 0) {
+        cmd_timer_stop_usage();
+    }
+
     struct timer *tm = NULL;
-    if((tm = get_timer_by_name(kv, argv[0])) == NULL) {
-        die_error("No such timer '%s'", argv[0]);
+    if((tm = get_timer_by_name(kv, timer_name)) == NULL) {
+        die_error("No such timer '%s'", timer_name);
     }
 
     int rc = timer_stop(tm, 0, USER_CALL);
@@ -335,20 +353,20 @@ cmd_attr(int argc, const char **argv) {
 static void
 cmd_timer_stat_usage() {
     const char *usage = \
-        "docket timer stat [--help] [--status-only] [--running | --today \n" \
-        "                  | --yesterday | [--from <datetime>] [--to <datetime>]] \n" \
-        "\n" \
-        "    -s, --status-only   Do not show timings.\n"  \
-        "\n" \
-        "    -r, --running       Show timings for latest period of running timers.\n" \
-        "\n" \
-        "    -d, --today         Show accumulated timings for today.\n" \
-        "\n" \
-        "    -y, --yesterday     Show accumulated timings for yesterday.\n" \
-        "\n" \
-        "    -f, --from          Set range start for timings to be showed in Y-m-d H:M format.\n" \
-        "\n" \
-        "    -t, --to            Set range stop for timings to be showed in Y-m-d H:M format.\n";
+                        "docket timer stat [--help] [--status-only] [--running | --today \n" \
+                        "                  | --yesterday | [--from <datetime>] [--to <datetime>]] \n" \
+                        "\n" \
+                        "    -s, --status-only   Do not show timings.\n"  \
+                        "\n" \
+                        "    -r, --running       Show timings for latest period of running timers.\n" \
+                        "\n" \
+                        "    -d, --today         Show accumulated timings for today.\n" \
+                        "\n" \
+                        "    -y, --yesterday     Show accumulated timings for yesterday.\n" \
+                        "\n" \
+                        "    -f, --from          Set range start for timings to be showed in Y-m-d H:M format.\n" \
+                        "\n" \
+                        "    -t, --to            Set range stop for timings to be showed in Y-m-d H:M format.\n";
     usage_and_die("%s", usage);
 }
 
@@ -780,6 +798,7 @@ timer_get_last_period(struct timer *tm) {
     return trie_get_max_int_child_node(timings);
 }
 
+
 int
 timer_is_running(struct timer *tm) {
     struct word_trie *max_node = timer_get_last_period(tm);
@@ -1011,3 +1030,4 @@ __docket_timer_stop(struct timer *tm) {
     snprintf(tbuf, 16, "%lu", time(NULL));
     trie_insert_by_path(tm->index_node, build_path("timings", max_str, "stop"), (void *)strdup(tbuf));
 }
+
