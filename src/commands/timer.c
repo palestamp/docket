@@ -446,7 +446,8 @@ cmd_stat(int argc, const char **argv) {
         fprintf(stdout, "%-15s %-10s",
                 ltm.name,
                 (tmr ? "running" : "stopped"));
-        if(arg_status_only == NULL && tmr) {
+
+        if(arg_status_only == NULL || tmr) {
             fprintf(stdout, " %-10s", duration_from_ul(buf, timer_running_time(&ltm, start_range, stop_range)));
         }
         fputc('\n', stdout);
