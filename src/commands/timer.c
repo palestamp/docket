@@ -138,34 +138,70 @@ static const struct command commands[] = {
     {NULL, NULL},
 };
 
+static void
+cmd_timer_usage() {
+    const char *usage = \
+        "docket timer <command> [<args>]\n" \
+        "\n" \
+        "Common docket timer commands\n" \
+        "\n" \
+        "    new        create a new timer\n" \
+        "    start      start timer\n" \
+        "    stop       stop timer\n" \
+        "    set        set timer attributes\n" \
+        "    list       list current timer ranges\n" \
+        "    stat       show timer statistics\n"; \
+
+    usage_and_die("%s", usage);
+}
 
 /* Entry point */
 int
 cmd_timer(int argc, const char **argv) {
     TAILQ_INIT(&timers_chain);
     if (argc < 1) {
-        return 0;
+        cmd_timer_usage();
     }
 
     struct command *cmd = get_command(argv[0], commands);
     if (cmd == NULL || cmd->cmd(--argc, ++argv) == 0) {
-        return 0;
+        cmd_timer_usage();
     }
     return 1;
 }
 
+static void
+cmd_timer_new_usage() {
+    const char *usage = \
+        "docket timer new <name> [--help] [--abstract] [--parent <timer>]\n" \
+        "\n" \
+        "    -a, --abstract      Create timer that can not be started in common way.\n" \
+        "                        It can be "
+        "                        By default timer is concrete.\n" 
+        "    -p, --parent              \n" \
+        "    stop       stop timer\n" \
+        "    set        set timer attributes\n" \
+        "    list       list current timer ranges\n" \
+        "    stat       show timer statistics\n"; \
+
+    usage_and_die("%s", usage);
+}
 
 static int
 cmd_new(int argc, const char **argv) {
     char *parent = "*";
     char *abstract = NULL;
+    char *help = NULL;
     struct option timer_new_options[] = {
         {"p", "parent", {.required = 0, .has_args = 1}, &parent},
         {"a", "abstract", {.required = 0, .has_args = 0}, &abstract},
+        {"h", "help", {.required = 0, .has_args = 0}, &help},
         {NULL, NULL, {0}, NULL},
     };
 
-    if (argc < 1) return 0;
+    if (argc < 1) {
+        cmd_timer_new_usage();
+    };
 
     const char *timer_name = argv[0];
     argc--, argv++;
@@ -174,6 +210,10 @@ cmd_new(int argc, const char **argv) {
     int rv = options_populate(err, &argc, &argv, timer_new_options);
     if (rv != 0) {
         die_error("%s", err);
+    }
+
+    if (help) {
+        cmd_timer_new_usage();
     }
 
     struct kvsrc *kv = NULL;

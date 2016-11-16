@@ -29,3 +29,12 @@ die_fatal(const char *err, ...) {
 	va_end(params);
     exit(128);
 }
+
+void
+usage_and_die(const char *err, ...) {
+	va_list params;
+	va_start(params, err);
+	vreportf("usage: ", err, params);
+	va_end(params);
+    exit(128);
+}

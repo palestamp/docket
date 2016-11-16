@@ -36,6 +36,8 @@ elseif(FLAVOUR STREQUAL test)
     target_compile_definitions(docket PRIVATE DOCKET_TIMER_STD_PATH="$ENV{HOME}/.docket_timer_test")
 endif()
 
+find_package(PNG REQUIRED)
+
 target_include_directories(docket PUBLIC
     ${CMAKE_CURRENT_LIST_DIR}
 )
