@@ -1,8 +1,8 @@
 #include <stdlib.h>
 #include <time.h>
 #include <limits.h>
-
 #include "command.h"
+
 #include "options.h"
 #include "kv.h"
 #include "strbuf.h"
@@ -14,12 +14,6 @@
 #endif
 
 TAILQ_HEAD(,timer) timers_chain;
-
-
-enum timer_op_st {
-    TIMER_OP_OK,
-    TIMER_OP_ERROR,
-};
 
 
 enum timer_type {
@@ -59,8 +53,13 @@ struct _timer_vmtable abstract_vmt = {
 
 
 struct timer {
+    // name of the timer
     const char *name;
+
+    // pointer to parent timer if any
     struct timer *parent;
+
+    // timer type (abstract|conctrete)
     enum timer_type type;
     struct kvsrc *kv;
     struct word_trie *index_node;
@@ -135,17 +134,17 @@ static const struct command commands[] = {
 static void
 cmd_timer_usage() {
     const char *usage = \
-        "docket timer <command> [<args>]\n" \
-        "\n" \
-        "Common docket timer commands\n" \
-        "\n" \
-        "    new        create a new timer\n" \
-        "    start      start timer\n" \
-        "    stop       stop timer\n" \
-        "    set        set timer attributes\n" \
-        "    stat       show timer statistics\n"; \
+                        "docket timer <command> [<args>]\n" \
+                        "\n" \
+                        "Common docket timer commands\n" \
+                        "\n" \
+                        "    new        create a new timer\n" \
+                        "    start      start timer\n" \
+                        "    stop       stop timer\n" \
+                        "    set        set timer attributes\n" \
+                        "    stat       show timer statistics\n"; \
 
-        usage_and_die("%s", usage);
+                        usage_and_die("%s", usage);
 }
 
 /* Entry point */
@@ -167,18 +166,18 @@ cmd_timer(int argc, const char **argv) {
 static void
 cmd_timer_new_usage() {
     const char *usage = \
-        "docket timer new <name> [--help] [--abstract] [--parent <timer>]\n" \
-        "\n" \
-        "    -a, --abstract      Create timer that can not be started in common way.\n"  \
-        "                        Abstract will run if any of its children is running.\n" \
-        "                        If abstract timer manually stopped - all its children\n" \
-        "                        also will be stopped.\n" \
-        "                        Unlike concrete timers, abstract timer stops with last running child timer.\n" \
-        "                        By default timer is concrete.\n" \
-        "\n\n" \
-        "    -p, --parent        Set parent to new timer.\n" \
-        "                        Parent timer always runs if any of its child is running.\n" \
-        "                        Bunch of children timers can be stopped by stopping parent timer.\n";
+                        "docket timer new <name> [--help] [--abstract] [--parent <timer>]\n" \
+                        "\n" \
+                        "    -a, --abstract      Create timer that can not be started in common way.\n"  \
+                        "                        Abstract will run if any of its children is running.\n" \
+                        "                        If abstract timer manually stopped - all its children\n" \
+                        "                        also will be stopped.\n" \
+                        "                        Unlike concrete timers, abstract timer stops with last running child timer.\n" \
+                        "                        By default timer is concrete.\n" \
+                        "\n\n" \
+                        "    -p, --parent        Set parent to new timer.\n" \
+                        "                        Parent timer always runs if any of its child is running.\n" \
+                        "                        Bunch of children timers can be stopped by stopping parent timer.\n";
     usage_and_die("%s", usage);
 }
 
@@ -232,7 +231,7 @@ cmd_new(int argc, const char **argv) {
 static void
 cmd_timer_start_usage() {
     const char *usage = \
-        "docket timer start <name> - Starts timer.\n";
+                        "docket timer start <name> - Starts timer.\n";
     usage_and_die("%s", usage);
 }
 
@@ -289,7 +288,7 @@ cmd_start(int argc, const char **argv) {
 static void
 cmd_timer_stop_usage() {
     const char *usage = \
-        "docket timer stop <name> - Stops timer.\n";
+                        "docket timer stop <name> - Stops timer.\n";
     usage_and_die("%s", usage);
 }
 
@@ -380,6 +379,7 @@ cmd_timer_stat_usage() {
 static int
 cmd_stat(int argc, const char **argv) {
     char *arg_status_only = NULL;
+    char *arg_name_only = NULL;
     char *arg_running = NULL;
     char *arg_today = NULL;
     char *arg_yesterday = NULL;
@@ -388,6 +388,7 @@ cmd_stat(int argc, const char **argv) {
     char *arg_help = NULL;
     struct option timer_stat_options[] = {
         {"s", "status-only", {.required = 0, .has_args = 0}, &arg_status_only},
+        {"n", "name-only", {.required = 0, .has_args = 0}, &arg_name_only},
         {"r", "running", {.required = 0, .has_args = 0}, &arg_running},
         {"d", "today", {.required = 0, .has_args = 0}, &arg_today},
         {"y", "yesterday", {.required = 0, .has_args = 0}, &arg_yesterday},
@@ -410,9 +411,6 @@ cmd_stat(int argc, const char **argv) {
     struct kvsrc *kv = NULL;
     kv = kv_load(DOCKET_TIMER_STD_PATH, kv_parse);
 
-    struct word_trie *root = kv_get(kv, "docket:timer");
-    struct word_trie *index_node = NULL;
-    struct timer ltm = {0};
 
     int start_range = 0;
     int stop_range = INT_MAX;
@@ -440,6 +438,9 @@ cmd_stat(int argc, const char **argv) {
         }
     }
 
+    struct word_trie *root = kv_get(kv, "docket:timer");
+    struct word_trie *index_node = NULL;
+    struct timer ltm = {0};
     char buf[24];
     while((index_node = trie_loop_children(index_node, root))) {
         ltm.kv = kv;
@@ -449,9 +450,11 @@ cmd_stat(int argc, const char **argv) {
         memset(buf, 0, 24);
         int tmr = timer_is_running(&ltm);
 
-        fprintf(stdout, "%-15s %-10s",
-                ltm.name,
-                (tmr ? "running" : "stopped"));
+        if(arg_name_only) {
+            fprintf(stdout, "%s\n", ltm.name);
+            continue;
+        }
+        fprintf(stdout, "%-15s %-10s", ltm.name, (tmr ? "running" : "stopped"));
 
         if(arg_status_only != NULL) {
             fputc('\n', stdout);

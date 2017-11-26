@@ -11,6 +11,7 @@
 #include "report.h"
 #include "strbuf.h"
 
+char * name_from_path(const char *path);
 
 /*
  * Register new docket file in config
@@ -22,7 +23,7 @@ cmd_add(int argc, const char **argv) {
 
     struct option add_options[] = {
         {"c", "use-config", {.required = 0, .has_args = 1}, &config_path},
-        {"n", "name",       {.required = 1, .has_args = 1}, &name},
+        {"n", "name",       {.required = 0, .has_args = 1}, &name},
         {0},
     };
 
@@ -47,6 +48,7 @@ cmd_add(int argc, const char **argv) {
     char *name_accessor = build_path(DCT_CONFIG_SOURCES_TRIE_PATH, "*", "name");
 
     config_path = (char *)get_config_path(config_path);
+    name = name ? name : name_from_path(source_path);
     if(kv_exists(config_path)) {
         kv = kv_load(config_path, kv_parse);
         if (kv_has(kv, name_accessor, name)) {
@@ -83,4 +85,11 @@ cmd_add(int argc, const char **argv) {
     }
 
     return 1;
+}
+
+char *
+name_from_path(const char *path) {
+    char *slash = strrchr(path, '/') + 1;
+    char *d = strchr(slash, '.');
+    return copy_slice(slash, d - slash);
 }

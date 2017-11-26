@@ -28,6 +28,22 @@ add_executable(docket
     commands/timer.c
 )
 
+add_executable(jsgen
+    command.c
+    trie.c
+    trie_util.c
+    docket.c
+    filter.c
+    strbuf.c
+    cfdm.c
+    scanner.c
+    abspath.c
+    dckerr.c
+    report.c
+    kv.c
+    json.c
+)
+
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -O0 -ggdb")
 
 if(FLAVOUR STREQUAL prod)
